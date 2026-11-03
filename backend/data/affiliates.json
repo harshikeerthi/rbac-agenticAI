@@ -1,0 +1,74 @@
+[
+  {
+    "id": "aff_alice",
+    "userId": "usr_aff_alice",
+    "name": "Alice Rivera",
+    "email": "alice@techreviews.com",
+    "website": "https://techreviews.com",
+    "category": "Consumer Electronics & SaaS",
+    "assignedManagerId": "usr_mgr_sarah",
+    "status": "active",
+    "commissionRate": 15,
+    "referralCode": "ALICE-TECH-2026",
+    "metrics": {
+      "totalClicks": 14200,
+      "totalConversions": 850,
+      "totalEarnings": 12750
+    },
+    "internalNotes": "Top tech influencer. High conversion on productivity software reviews."
+  },
+  {
+    "id": "aff_bob",
+    "userId": "usr_aff_bob",
+    "name": "Bob Chen",
+    "email": "bob@fitnessgear.io",
+    "website": "https://fitnessgear.io",
+    "category": "Health & Fitness",
+    "assignedManagerId": "usr_mgr_sarah",
+    "status": "active",
+    "commissionRate": 12.5,
+    "referralCode": "BOB-FIT-2026",
+    "metrics": {
+      "totalClicks": 9100,
+      "totalConversions": 420,
+      "totalEarnings": 5250
+    },
+    "internalNotes": "Fitness and nutrition specialist. Currently testing summer pre-workout campaign."
+  },
+  {
+    "id": "aff_charlie",
+    "userId": "usr_aff_charlie",
+    "name": "Charlie Gomez",
+    "email": "charlie@lifestylehub.blog",
+    "website": "https://lifestylehub.blog",
+    "category": "Home & Lifestyle",
+    "assignedManagerId": "usr_mgr_david",
+    "status": "pending_review",
+    "commissionRate": 10,
+    "referralCode": "CHARLIE-LIFE-2026",
+    "metrics": {
+      "totalClicks": 2100,
+      "totalConversions": 95,
+      "totalEarnings": 950
+    },
+    "internalNotes": "Assigned to David Kim. Awaiting tax compliance form W-8BEN."
+  },
+  {
+    "id": "aff_eva_publisher_vs3f",
+    "userId": "usr_aff_eva_publisher_vs3f",
+    "name": "Eva Publisher",
+    "email": "eva@editorial.com",
+    "website": "https://editorial.com",
+    "category": "General Merchandise",
+    "assignedManagerId": "usr_mgr_sarah",
+    "status": "active",
+    "commissionRate": 14,
+    "referralCode": "EVA P-2026",
+    "metrics": {
+      "totalClicks": 0,
+      "totalConversions": 0,
+      "totalEarnings": 0
+    },
+    "internalNotes": "Newly onboarded affiliate partner."
+  }
+]

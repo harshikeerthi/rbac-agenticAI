@@ -1,0 +1,22 @@
+{
+  "name": "affiliate-access-lab",
+  "version": "1.0.0",
+  "description": "Affiliate Access Lab — Standalone RBAC and Least-Privilege Prototype",
+  "private": true,
+  "scripts": {
+    "start:backend": "npm start --prefix backend",
+    "start:frontend": "npm run dev --prefix frontend",
+    "test": "npm test --prefix backend",
+    "build:frontend": "npm run build --prefix frontend"
+  },
+  "keywords": [
+    "rbac",
+    "least-privilege",
+    "security",
+    "affiliate",
+    "authorization"
+  ],
+  "author": "",
+  "license": "ISC"
+}
+

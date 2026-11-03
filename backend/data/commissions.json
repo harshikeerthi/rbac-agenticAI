@@ -1,0 +1,39 @@
+[
+  {
+    "id": "comm_101",
+    "affiliateId": "aff_alice",
+    "affiliateName": "Alice Rivera",
+    "userId": "usr_aff_alice",
+    "assignedManagerId": "usr_mgr_sarah",
+    "amount": 2500,
+    "period": "October 2026",
+    "status": "paid",
+    "approvedBy": "usr_admin_alex",
+    "createdAt": "2026-11-01T09:00:00.000Z"
+  },
+  {
+    "id": "comm_102",
+    "affiliateId": "aff_bob",
+    "affiliateName": "Bob Chen",
+    "userId": "usr_aff_bob",
+    "assignedManagerId": "usr_mgr_sarah",
+    "amount": 1100,
+    "period": "October 2026",
+    "status": "paid",
+    "approvedBy": "usr_admin_alex",
+    "createdAt": "2026-11-01T09:15:00.000Z",
+    "approvedAt": "2026-11-03T09:13:23.419Z"
+  },
+  {
+    "id": "comm_103",
+    "affiliateId": "aff_charlie",
+    "affiliateName": "Charlie Gomez",
+    "userId": "usr_aff_charlie",
+    "assignedManagerId": "usr_mgr_david",
+    "amount": 350,
+    "period": "October 2026",
+    "status": "pending",
+    "approvedBy": null,
+    "createdAt": "2026-11-01T09:30:00.000Z"
+  }
+]

@@ -1,0 +1,59 @@
+[
+  {
+    "id": "usr_admin_alex",
+    "name": "Alex Carter",
+    "email": "alex.carter@platform.local",
+    "role": "admin",
+    "avatar": "admin-avatar",
+    "department": "Platform Operations"
+  },
+  {
+    "id": "usr_mgr_sarah",
+    "name": "Sarah Jenkins",
+    "email": "sarah.jenkins@platform.local",
+    "role": "affiliate_manager",
+    "avatar": "manager-sarah",
+    "portfolio": "Team Alpha (Affiliates A & B)"
+  },
+  {
+    "id": "usr_mgr_david",
+    "name": "David Kim",
+    "email": "david.kim@platform.local",
+    "role": "affiliate_manager",
+    "avatar": "manager-david",
+    "portfolio": "Team Beta (Affiliate C)"
+  },
+  {
+    "id": "usr_aff_alice",
+    "name": "Alice Rivera",
+    "email": "alice@techreviews.com",
+    "role": "affiliate_user",
+    "avatar": "affiliate-alice",
+    "assignedManagerId": "usr_mgr_sarah"
+  },
+  {
+    "id": "usr_aff_bob",
+    "name": "Bob Chen",
+    "email": "bob@fitnessgear.io",
+    "role": "affiliate_user",
+    "avatar": "affiliate-bob",
+    "assignedManagerId": "usr_mgr_sarah"
+  },
+  {
+    "id": "usr_aff_charlie",
+    "name": "Charlie Gomez",
+    "email": "charlie@lifestylehub.blog",
+    "role": "affiliate_user",
+    "avatar": "affiliate-charlie",
+    "assignedManagerId": "usr_mgr_david"
+  },
+  {
+    "id": "usr_agent_spark",
+    "name": "MarketPulse AI Agent",
+    "email": "agent.marketpulse@system.internal",
+    "role": "ai_agent",
+    "avatar": "bot-avatar",
+    "capabilities": "Deterministic aggregate statistical analytics only"
+  }
+]
+

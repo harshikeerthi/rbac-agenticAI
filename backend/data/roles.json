@@ -1,0 +1,44 @@
+{
+  "admin": {
+    "name": "Administrator",
+    "description": "Full administrative control across all platform resources and settings",
+    "permissions": [
+      "affiliates:read:all",
+      "affiliates:create",
+      "affiliates:update:all",
+      "affiliates:delete",
+      "commissions:read:all",
+      "commissions:approve",
+      "reports:read:aggregate",
+      "activity:read"
+    ]
+  },
+  "affiliate_manager": {
+    "name": "Affiliate Manager",
+    "description": "Manages assigned portfolio of affiliates and tracks team metrics",
+    "permissions": [
+      "affiliates:read:assigned",
+      "affiliates:update:assigned",
+      "commissions:read:assigned",
+      "reports:read:aggregate",
+      "activity:read"
+    ]
+  },
+  "affiliate_user": {
+    "name": "Affiliate Partner",
+    "description": "Individual publisher with personal dashboard and payout history",
+    "permissions": [
+      "affiliates:read:own",
+      "affiliates:update:own",
+      "commissions:read:own"
+    ]
+  },
+  "ai_agent": {
+    "name": "Simulated AI Agent",
+    "description": "Automated analytics worker under strict least-privilege (aggregate-only)",
+    "permissions": [
+      "reports:read:aggregate"
+    ]
+  }
+}
+
