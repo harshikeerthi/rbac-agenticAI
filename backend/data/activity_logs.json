@@ -1,5 +1,65 @@
 [
   {
+    "id": "act_1793698781316_pe1i8",
+    "timestamp": "2026-11-03T09:39:41.316Z",
+    "userId": "usr_mgr_sarah",
+    "userRole": "affiliate_manager",
+    "method": "GET",
+    "endpoint": "/api/reports/aggregate-stats",
+    "requiredPermission": "reports:read:aggregate",
+    "outcome": "ALLOWED",
+    "statusCode": 200,
+    "details": "Served privacy-preserving aggregate metrics (zero PII)"
+  },
+  {
+    "id": "act_1793698781313_s89fi",
+    "timestamp": "2026-11-03T09:39:41.313Z",
+    "userId": "usr_mgr_sarah",
+    "userRole": "affiliate_manager",
+    "method": "GET",
+    "endpoint": "/api/commissions",
+    "requiredPermission": "commissions:read:assigned",
+    "outcome": "ALLOWED",
+    "statusCode": 200,
+    "details": "Returned 2 commission ledger record(s)"
+  },
+  {
+    "id": "act_1793698781311_qipbk",
+    "timestamp": "2026-11-03T09:39:41.311Z",
+    "userId": "usr_mgr_sarah",
+    "userRole": "affiliate_manager",
+    "method": "GET",
+    "endpoint": "/api/affiliates",
+    "requiredPermission": "affiliates:read:assigned",
+    "outcome": "ALLOWED",
+    "statusCode": 200,
+    "details": "Returned 2 affiliate record(s) under scope: ASSIGNED_PORTFOLIO_ONLY (Filtered by assignedManagerId === usr_mgr_sarah)"
+  },
+  {
+    "id": "act_1793698781307_heykh",
+    "timestamp": "2026-11-03T09:39:41.307Z",
+    "userId": "usr_mgr_sarah",
+    "userRole": "affiliate_manager",
+    "method": "GET",
+    "endpoint": "/api/me",
+    "requiredPermission": "authenticated_identity",
+    "outcome": "ALLOWED",
+    "statusCode": 200,
+    "details": "Resolved demo user Sarah Jenkins (affiliate_manager)"
+  },
+  {
+    "id": "act_1793698781285_zub4u",
+    "timestamp": "2026-11-03T09:39:41.285Z",
+    "userId": "usr_mgr_sarah",
+    "userRole": "affiliate_manager",
+    "method": "GET",
+    "endpoint": "/api/me",
+    "requiredPermission": "authenticated_identity",
+    "outcome": "ALLOWED",
+    "statusCode": 200,
+    "details": "Resolved demo user Sarah Jenkins (affiliate_manager)"
+  },
+  {
     "id": "act_1793697410767_qke1o",
     "timestamp": "2026-11-03T09:16:50.767Z",
     "userId": "usr_admin_alex",
