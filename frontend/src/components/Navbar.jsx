@@ -8,7 +8,8 @@ import {
   FileText,
   Grid,
   RotateCcw,
-  UserCheck
+  UserCheck,
+  Sliders
 } from 'lucide-react';
 
 export default function Navbar({
@@ -30,7 +31,7 @@ export default function Navbar({
     }
   };
 
-  const navItems = [
+  const rbacNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Shield },
     { id: 'affiliates', label: 'Affiliates', icon: Users },
     { id: 'commissions', label: 'Commissions', icon: DollarSign },
@@ -111,27 +112,91 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <nav className="flex space-x-1 border-t border-slate-800/80 pt-1 -mb-px overflow-x-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
+        {/* Two-Module Navigation Header */}
+        <div className="border-t border-slate-800/80 pt-2 pb-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+            {/* Module Switcher Pills */}
+            <div className="flex items-center gap-1.5 p-1 bg-slate-950/80 border border-slate-800 rounded-xl w-fit">
               <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-                  isActive
-                    ? 'border-indigo-500 text-indigo-300 bg-indigo-950/20'
-                    : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                type="button"
+                onClick={() => {
+                  if (activeTab === 'governance') setActiveTab('dashboard');
+                }}
+                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                  activeTab !== 'governance'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
                 }`}
               >
-                <Icon size={16} />
-                {item.label}
+                <Shield size={14} />
+                Module 1: RBAC & Least Privilege
               </button>
-            );
-          })}
-        </nav>
+              <button
+                type="button"
+                onClick={() => setActiveTab('governance')}
+                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                  activeTab === 'governance'
+                    ? 'bg-purple-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                }`}
+              >
+                <Sliders size={14} />
+                Module 2: Agent Governance & Audit
+              </button>
+            </div>
+
+            {/* Active Module Indicator Badge */}
+            <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
+              <span>Active Scope:</span>
+              <span
+                className={`px-2 py-0.5 rounded font-bold uppercase ${
+                  activeTab !== 'governance'
+                    ? 'bg-indigo-950/60 text-indigo-300 border border-indigo-800/50'
+                    : 'bg-purple-950/60 text-purple-300 border border-purple-800/50'
+                }`}
+              >
+                {activeTab !== 'governance' ? 'Core Platform RBAC' : 'Autonomous AI Guardrails'}
+              </span>
+            </div>
+          </div>
+
+          {/* Tab Navigation for Module 1 */}
+          {activeTab !== 'governance' ? (
+            <nav className="flex space-x-1 -mb-px overflow-x-auto">
+              {rbacNavItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                      isActive
+                        ? 'border-indigo-500 text-indigo-300 bg-indigo-950/20'
+                        : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                    }`}
+                  >
+                    <Icon size={16} />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </nav>
+          ) : (
+            <div className="py-1 text-xs text-slate-400 flex items-center justify-between">
+              <span className="flex items-center gap-2 text-purple-300 font-semibold">
+                <Sliders size={14} /> Agent Governance & Audit Module is currently active.
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveTab('dashboard')}
+                className="text-xs text-indigo-400 hover:text-indigo-300 underline font-mono"
+              >
+                ← Return to Module 1 (RBAC Platform)
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

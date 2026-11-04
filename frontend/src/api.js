@@ -117,6 +117,41 @@ export async function getActivityLogs() {
   return apiFetch('/activity');
 }
 
+// 6. Agent Governance Endpoints
+export async function getGovernancePolicies() {
+  return apiFetch('/governance/policies');
+}
+
+export async function getGovernanceProposals(status) {
+  const query = status ? `?status=${status}` : '';
+  return apiFetch(`/governance/proposals${query}`);
+}
+
+export async function approveGovernanceProposal(id, notes = '') {
+  return apiFetch(`/governance/proposals/${id}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ notes })
+  });
+}
+
+export async function rejectGovernanceProposal(id, reason = '') {
+  return apiFetch(`/governance/proposals/${id}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason })
+  });
+}
+
+export async function dispatchGovernanceAction(actionName, parameters = {}) {
+  return apiFetch('/governance/dispatch', {
+    method: 'POST',
+    body: JSON.stringify({ actionName, parameters })
+  });
+}
+
+export async function getGovernanceAuditLogs() {
+  return apiFetch('/governance/audit');
+}
+
 /**
  * Raw Request Runner for Security Sandbox
  * Allows custom headers and methods to test real-world attacks

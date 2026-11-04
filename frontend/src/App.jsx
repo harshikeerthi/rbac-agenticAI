@@ -4,6 +4,7 @@ import DashboardView from './components/DashboardView';
 import AffiliatesView from './components/AffiliatesView';
 import CommissionsView from './components/CommissionsView';
 import AiInsightsView from './components/AiInsightsView';
+import AgentGovernanceView from './components/AgentGovernanceView';
 import SecuritySandboxView from './components/SecuritySandboxView';
 import ActivityLogView from './components/ActivityLogView';
 import RbacMatrixView from './components/RbacMatrixView';
@@ -218,6 +219,13 @@ export default function App() {
 
         {activeTab === 'ai-insights' && (
           <AiInsightsView currentUser={currentUser} />
+        )}
+
+        {activeTab === 'governance' && (
+          <AgentGovernanceView
+            currentUser={currentUser}
+            onNotify={showNotification}
+          />
         )}
 
         {activeTab === 'sandbox' && (

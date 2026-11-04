@@ -52,23 +52,5 @@
       "totalEarnings": 950
     },
     "internalNotes": "Assigned to David Kim. Awaiting tax compliance form W-8BEN."
-  },
-  {
-    "id": "aff_eva_publisher_vs3f",
-    "userId": "usr_aff_eva_publisher_vs3f",
-    "name": "Eva Publisher",
-    "email": "eva@editorial.com",
-    "website": "https://editorial.com",
-    "category": "General Merchandise",
-    "assignedManagerId": "usr_mgr_sarah",
-    "status": "active",
-    "commissionRate": 14,
-    "referralCode": "EVA P-2026",
-    "metrics": {
-      "totalClicks": 0,
-      "totalConversions": 0,
-      "totalEarnings": 0
-    },
-    "internalNotes": "Newly onboarded affiliate partner."
   }
 ]

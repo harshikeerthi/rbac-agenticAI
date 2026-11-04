@@ -94,6 +94,24 @@ export default function RbacMatrixView({ currentUser }) {
       manager: { allowed: true, scope: 'Global Audit Trail' },
       affiliate: { allowed: false, scope: 'Blocked (403)' },
       agent: { allowed: false, scope: 'Blocked (403)' }
+    },
+    {
+      operation: 'Dispatch Agent Action',
+      endpoint: 'POST /api/governance/dispatch',
+      permission: 'governance:execute',
+      admin: { allowed: true, scope: 'Global Dispatch' },
+      manager: { allowed: false, scope: 'Blocked (403)' },
+      affiliate: { allowed: false, scope: 'Blocked (403)' },
+      agent: { allowed: true, scope: 'Policy Guarded' }
+    },
+    {
+      operation: 'Manage Policies & HITL Review',
+      endpoint: 'GET/POST /api/governance/*',
+      permission: 'governance:admin',
+      admin: { allowed: true, scope: 'Full Oversight' },
+      manager: { allowed: false, scope: 'Blocked (403)' },
+      affiliate: { allowed: false, scope: 'Blocked (403)' },
+      agent: { allowed: false, scope: 'Blocked (403)' }
     }
   ];
 

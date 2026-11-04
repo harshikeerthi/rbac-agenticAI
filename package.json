@@ -4,6 +4,8 @@
   "description": "Affiliate Access Lab — Standalone RBAC and Least-Privilege Prototype",
   "private": true,
   "scripts": {
+    "dev": "npm run dev --prefix frontend",
+    "start": "npm start --prefix backend",
     "start:backend": "npm start --prefix backend",
     "start:frontend": "npm run dev --prefix frontend",
     "test": "npm test --prefix backend",

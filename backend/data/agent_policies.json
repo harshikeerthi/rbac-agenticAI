@@ -1,0 +1,20 @@
+{
+  "usr_agent_spark": {
+    "agentId": "usr_agent_spark",
+    "agentName": "MarketPulse AI Agent",
+    "description": "Simulated analytical agent governed by least-privilege and human-in-the-loop controls",
+    "allowedActions": [
+      "query_aggregate_metrics"
+    ],
+    "requiresApprovalActions": [
+      "propose_commission_adjustment"
+    ],
+    "prohibitedActions": [
+      "read_affiliate_pii"
+    ],
+    "commissionRateLimits": {
+      "minRate": 1,
+      "maxRate": 50
+    }
+  }
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "prop_seed_001",
+    "agentId": "usr_agent_spark",
+    "agentName": "MarketPulse AI Agent",
+    "actionName": "propose_commission_adjustment",
+    "targetAffiliateId": "aff_alice",
+    "targetAffiliateName": "Alice Rivera",
+    "currentRate": 15,
+    "proposedRate": 18,
+    "reason": "Top Q3 SaaS conversions reached 850 with 6.0% conversion rate.",
+    "status": "pending",
+    "createdAt": "2026-11-03T14:00:00.000Z",
+    "resolvedAt": null,
+    "resolvedBy": null,
+    "resolutionNotes": null
+  }
+]

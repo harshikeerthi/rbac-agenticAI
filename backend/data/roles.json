@@ -10,7 +10,8 @@
       "commissions:read:all",
       "commissions:approve",
       "reports:read:aggregate",
-      "activity:read"
+      "activity:read",
+      "governance:admin"
     ]
   },
   "affiliate_manager": {
@@ -37,8 +38,8 @@
     "name": "Simulated AI Agent",
     "description": "Automated analytics worker under strict least-privilege (aggregate-only)",
     "permissions": [
-      "reports:read:aggregate"
+      "reports:read:aggregate",
+      "governance:execute"
     ]
   }
 }
-

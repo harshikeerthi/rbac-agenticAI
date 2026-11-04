@@ -11,6 +11,7 @@ import affiliateRoutes from './routes/affiliates.js';
 import commissionRoutes from './routes/commissions.js';
 import reportRoutes from './routes/reports.js';
 import activityRoutes from './routes/activity.js';
+import governanceRoutes from './routes/governance.js';
 
 const app = express();
 
@@ -58,6 +59,7 @@ app.use('/api/affiliates', affiliateRoutes);
 app.use('/api/commissions', commissionRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/activity', activityRoutes);
+app.use('/api/governance', governanceRoutes);
 
 // 4. Fallback 404 handler for unknown routes
 app.use('/api/*', (req, res) => {
