@@ -81,3 +81,4 @@ The platform provides five canonical identities across four distinct roles:
   7. Request Body Role Spoofing (`{ "role": "admin" }`).
 - **Decision Log**: Real-time audit stream of all backend access decisions from `activity_logs.json`.
 - **RBAC Matrix**: Live visual grid displaying the permission-to-endpoint mappings across all roles.
+

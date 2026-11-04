@@ -96,3 +96,4 @@ When an agent proposes an action requiring approval, it is placed in the queue a
 | `/api/governance/proposals/:id/approve` | `POST` | `governance:admin` | Approve proposal and apply rate change |
 | `/api/governance/proposals/:id/reject` | `POST` | `governance:admin` | Reject proposal with justification reason |
 | `/api/governance/audit` | `GET` | `governance:admin` | Retrieve append-only agent audit stream |
+

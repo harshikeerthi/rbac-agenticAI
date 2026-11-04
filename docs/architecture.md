@@ -84,3 +84,4 @@ Affiliate Access Lab is designed as an educational, zero-cloud prototype demonst
 | **Admin Controls** | Create partners, payout approvals | Review & approve/reject agent proposals |
 | **Agent Capabilities** | Read-only aggregate stats (`reports:read:aggregate`) | Dispatch action pipeline (`governance:execute`) |
 | **Data Scope** | Row-level tenant isolation & manager assignments | Tool allowlists, rate bounds & HITL queues |
+
