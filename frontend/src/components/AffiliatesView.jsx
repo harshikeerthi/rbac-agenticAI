@@ -9,12 +9,21 @@ import {
   AlertTriangle,
   CheckCircle,
   ExternalLink,
-  ShieldAlert
+  ShieldAlert,
+  Search,
+  Filter,
+  Check,
+  X,
+  Building,
+  Mail,
+  Globe,
+  SlidersHorizontal,
+  ChevronRight
 } from 'lucide-react';
 import { createAffiliate, updateAffiliate, deleteAffiliate } from '../api';
 
 export default function AffiliatesView({
-  affiliates,
+  affiliates = [],
   currentUser,
   onRefresh,
   onNotify
@@ -25,6 +34,10 @@ export default function AffiliatesView({
   const [editWebsite, setEditWebsite] = useState('');
   const [editRate, setEditRate] = useState(10);
   const [loading, setLoading] = useState(false);
+
+  // Search & filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
   // New affiliate form state
   const [newName, setNewName] = useState('');
@@ -118,106 +131,164 @@ export default function AffiliatesView({
   // If role is AI Agent, show access denied state
   if (isAiAgent) {
     return (
-      <div className="panel p-8 text-center max-w-2xl mx-auto space-y-4">
-        <div className="w-16 h-16 rounded-full bg-rose-950/60 border border-rose-800/80 flex items-center justify-center mx-auto text-rose-400">
+      <div className="panel p-8 text-center max-w-2xl mx-auto space-y-4 bg-white border border-rose-200">
+        <div className="w-16 h-16 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto text-rose-600">
           <ShieldAlert size={32} />
         </div>
-        <h3 className="text-lg font-bold text-white">403 Forbidden: Individual Records Inaccessible</h3>
-        <p className="text-sm text-slate-300">
-          The <strong>MarketPulse AI Agent</strong> does not possess the <code>affiliates:read:*</code> permission.
+        <h3 className="text-lg font-bold text-slate-900">403 Forbidden: Individual Partner Records Inaccessible</h3>
+        <p className="text-sm text-slate-600 leading-relaxed">
+          The <strong>MarketPulse AI Agent</strong> is constrained by the principle of least privilege and does not possess any <code className="bg-slate-100 px-1 py-0.5 rounded text-rose-700">affiliates:read:*</code> permissions.
         </p>
-        <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-left font-mono text-xs text-rose-300">
-          <div>HTTP Status: 403 Forbidden</div>
-          <div>Error Code: INSUFFICIENT_PERMISSIONS</div>
-          <div>Missing Permission: [affiliates:read:all OR affiliates:read:assigned OR affiliates:read:own]</div>
+        <div className="bg-slate-900 text-white rounded-xl p-4 text-left font-mono text-xs space-y-1">
+          <div className="text-rose-400 font-bold">HTTP Status: 403 Forbidden</div>
+          <div className="text-slate-300">Error Code: INSUFFICIENT_PERMISSIONS</div>
+          <div className="text-slate-400">Missing: [affiliates:read:all OR affiliates:read:assigned OR affiliates:read:own]</div>
         </div>
-        <p className="text-xs text-slate-400">
-          To view statistical aggregates, navigate to the <strong>AI Agent Summary</strong> tab.
+        <p className="text-xs text-slate-500">
+          To view anonymized aggregate platform analytics, visit the <strong>MarketPulse AI Insights</strong> module.
         </p>
       </div>
     );
   }
 
+  // Filter affiliates
+  const filteredAffiliates = affiliates.filter(aff => {
+    const matchesSearch = searchQuery.trim() === '' ||
+      aff.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      aff.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (aff.email && aff.email.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesStatus = statusFilter === 'ALL' || aff.status?.toUpperCase() === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
   return (
-    <div className="space-y-6">
-      {/* Scoping Explanation Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4">
+      {/* Top Header & Context */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Users size={20} className="text-indigo-400" />
-            Affiliate Partners Directory
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {isAdmin && 'Displaying all platform affiliate accounts (Global Admin Scope).'}
-            {isManager && 'Displaying only affiliates assigned to your portfolio (Manager Assignment Scope).'}
-            {isAffiliate && 'Displaying your own verified affiliate profile (Data Ownership Scope).'}
-          </p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold flex-shrink-0">
+              <Users size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold text-slate-900">Affiliate Directory</h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  MODULE 1
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {isAdmin && 'Global Administrator Scope: Viewing all affiliate partner profiles across all managers.'}
+                {isManager && 'Manager Assignment Scope: Viewing only partner profiles assigned to your team.'}
+                {isAffiliate && 'Publisher Ownership Scope: Viewing your personal partner profile and settings.'}
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Add Affiliate Button */}
-        <div>
+        {/* Action Controls */}
+        <div className="flex items-center gap-2">
           {isAdmin ? (
             <button
               onClick={() => setIsCreateOpen(true)}
               className="btn-primary text-xs"
             >
-              <Plus size={16} /> Onboard New Affiliate
+              <Plus size={15} /> Onboard New Partner
             </button>
           ) : (
-            <button
-              disabled
-              title="Admin role required: affiliates:create"
-              className="btn-primary opacity-40 cursor-not-allowed text-xs flex items-center gap-1.5"
-            >
-              <Lock size={14} /> Onboard Affiliate (Admin Only)
-            </button>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-500 border border-slate-200 text-xs font-medium cursor-not-allowed" title="Admin role required for affiliates:create">
+              <Lock size={13} /> Onboard Partner (Admin Only)
+            </div>
           )}
         </div>
       </div>
 
-      {/* Affiliates List */}
+      {/* Filter Bar */}
+      <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="relative w-full sm:w-72">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, ID, or email..."
+            className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <span className="text-xs font-semibold text-slate-500">Status:</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 font-medium focus:outline-none"
+          >
+            <option value="ALL">All Statuses ({affiliates.length})</option>
+            <option value="ACTIVE">Active</option>
+            <option value="PENDING">Pending</option>
+            <option value="SUSPENDED">Suspended</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Affiliates Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {affiliates.length === 0 ? (
-          <div className="col-span-full panel p-8 text-center text-slate-400">
-            No affiliate records found matching your assigned scope.
+        {filteredAffiliates.length === 0 ? (
+          <div className="col-span-full panel p-12 text-center text-slate-400 bg-white">
+            <Users size={36} className="mx-auto text-slate-300 mb-2" />
+            <p className="text-sm font-semibold text-slate-700">No affiliate partners found</p>
+            <p className="text-xs text-slate-400 mt-1">Try adjusting your search criteria or switch user scope.</p>
           </div>
         ) : (
-          affiliates.map((aff) => (
-            <div key={aff.id} className="panel p-5 space-y-4 hover:border-slate-600 transition flex flex-col justify-between">
+          filteredAffiliates.map((aff) => (
+            <div
+              key={aff.id}
+              className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-emerald-300 hover:shadow-card-hover transition flex flex-col justify-between"
+            >
               <div>
                 <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-base font-bold text-white">{aff.name}</h3>
-                    <p className="text-xs text-slate-400 font-mono">{aff.id}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 font-bold flex items-center justify-center text-sm border border-slate-200">
+                      {aff.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">{aff.name}</h3>
+                      <p className="text-[11px] text-slate-500 font-mono">{aff.id}</p>
+                    </div>
                   </div>
-                  <span className={`badge ${aff.status === 'active' ? 'badge-success' : 'badge-agent'}`}>
+                  <span className={`badge ${aff.status === 'active' ? 'badge-success' : 'badge-warning'}`}>
                     {aff.status}
                   </span>
                 </div>
 
-                <div className="mt-3 space-y-1.5 text-xs text-slate-300">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Category:</span>
-                    <span className="font-medium text-slate-200">{aff.category || 'General'}</span>
+                <div className="mt-4 space-y-2 text-xs">
+                  <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                    <span className="text-slate-500">Commission Rate</span>
+                    <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      {aff.commissionRate}%
+                    </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Commission Rate:</span>
-                    <span className="font-semibold text-emerald-400">{aff.commissionRate}%</span>
+                  <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                    <span className="text-slate-500">Assigned Manager</span>
+                    <span className="font-mono text-sky-700 font-medium">{aff.assignedManagerId}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Assigned Manager:</span>
-                    <span className="font-mono text-indigo-300">{aff.assignedManagerId}</span>
+                  <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                    <span className="text-slate-500">Category</span>
+                    <span className="font-medium text-slate-700">{aff.category || 'General'}</span>
                   </div>
                   {aff.metrics && (
-                    <div className="flex justify-between pt-1 border-t border-slate-800">
-                      <span className="text-slate-400">Conversions / Clicks:</span>
-                      <span className="font-medium">{aff.metrics.totalConversions} / {aff.metrics.totalClicks?.toLocaleString()}</span>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-slate-500">Conversions / Clicks</span>
+                      <span className="font-semibold text-slate-800">
+                        {aff.metrics.totalConversions} / {aff.metrics.totalClicks?.toLocaleString()}
+                      </span>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-3 border-t border-slate-800 gap-2">
+              <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100 gap-2">
                 <button
                   onClick={() => handleOpenDetails(aff)}
                   className="btn-secondary text-xs flex-1 justify-center"
@@ -227,7 +298,7 @@ export default function AffiliatesView({
                 {isAdmin && (
                   <button
                     onClick={() => handleDelete(aff.id)}
-                    className="btn-danger text-xs"
+                    className="btn-danger text-xs p-2"
                     title="Delete Affiliate (Admin Only)"
                   >
                     <Trash2 size={14} />
@@ -241,51 +312,51 @@ export default function AffiliatesView({
 
       {/* Inspect & Edit Modal */}
       {selectedAffiliate && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div>
-                <h3 className="text-base font-bold text-white">Affiliate Partner Profile</h3>
-                <p className="text-xs text-slate-400 font-mono">{selectedAffiliate.id}</p>
+                <h3 className="text-base font-bold text-slate-900">Affiliate Partner Profile</h3>
+                <p className="text-xs text-slate-500 font-mono">{selectedAffiliate.id}</p>
               </div>
               <button
                 onClick={() => setSelectedAffiliate(null)}
-                className="text-slate-400 hover:text-white text-lg font-bold"
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
               >
-                ×
+                <X size={18} />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-3.5 text-xs">
               <div>
-                <label className="text-slate-400 block mb-1">Partner Full Name</label>
+                <label className="text-slate-500 font-semibold block mb-1">Partner Full Name</label>
                 <input
                   type="text"
                   disabled
                   value={selectedAffiliate.name}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-300"
+                  className="w-full bg-slate-100 border border-slate-200 rounded-lg p-2.5 text-slate-600 font-medium cursor-not-allowed"
                 />
               </div>
 
               <div>
-                <label className="text-slate-400 block mb-1">Website URL (Editable by Admin & Affiliate)</label>
+                <label className="text-slate-500 font-semibold block mb-1">Website URL (Editable by Admin & Affiliate)</label>
                 <input
                   type="text"
                   disabled={isManager}
                   value={editWebsite}
                   onChange={(e) => setEditWebsite(e.target.value)}
-                  className={`w-full bg-slate-950 border rounded-lg p-2 ${
-                    isManager ? 'border-slate-800 text-slate-400' : 'border-slate-700 text-white'
+                  className={`w-full border rounded-lg p-2.5 text-slate-800 ${
+                    isManager ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-300'
                   }`}
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-slate-400">Commission Rate (%)</label>
+                  <label className="text-slate-500 font-semibold">Commission Rate (%)</label>
                   {!isAdmin && (
-                    <span className="text-[11px] text-amber-400 flex items-center gap-1">
-                      <Lock size={12} /> Restricted Field (Admin Only)
+                    <span className="text-[11px] text-amber-700 flex items-center gap-1 font-semibold">
+                      <Lock size={12} /> Restricted (Admin Only)
                     </span>
                   )}
                 </div>
@@ -294,8 +365,8 @@ export default function AffiliatesView({
                   disabled={!isAdmin}
                   value={editRate}
                   onChange={(e) => setEditRate(e.target.value)}
-                  className={`w-full bg-slate-950 border rounded-lg p-2 ${
-                    isAdmin ? 'border-slate-700 text-emerald-400 font-bold' : 'border-slate-800 text-slate-400 cursor-not-allowed'
+                  className={`w-full border rounded-lg p-2.5 ${
+                    isAdmin ? 'bg-white border-slate-300 text-emerald-700 font-bold' : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
                   }`}
                 />
               </div>
@@ -303,29 +374,29 @@ export default function AffiliatesView({
               {/* Internal Manager Notes */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-slate-400">Internal Manager Notes</label>
+                  <label className="text-slate-500 font-semibold">Internal Manager Notes</label>
                   {isAffiliate && (
-                    <span className="text-[11px] text-amber-400 flex items-center gap-1">
+                    <span className="text-[11px] text-amber-700 flex items-center gap-1 font-semibold">
                       <Lock size={12} /> Hidden from Publisher
                     </span>
                   )}
                 </div>
                 {isAffiliate ? (
-                  <div className="p-2 bg-slate-950/60 border border-slate-800 rounded-lg text-slate-500 italic">
-                    Restricted internal notes are sanitized on the server for affiliate users.
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 italic">
+                    Restricted internal management notes are sanitized on the server for affiliate partners.
                   </div>
                 ) : (
                   <textarea
                     rows={3}
                     value={editNotes}
                     onChange={(e) => setEditNotes(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-800 focus:outline-none focus:border-emerald-500"
                   />
                 )}
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+            <div className="flex justify-end gap-2 pt-4 border-t border-slate-200">
               <button
                 onClick={() => setSelectedAffiliate(null)}
                 className="btn-secondary text-xs"
@@ -346,65 +417,72 @@ export default function AffiliatesView({
 
       {/* Onboard New Affiliate Modal (Admin Only) */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleCreateSubmit} className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white">Onboard New Affiliate Partner</h3>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <form onSubmit={handleCreateSubmit} className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Onboard New Affiliate Partner</h3>
+                <p className="text-xs text-slate-500">Requires affiliates:create permission</p>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsCreateOpen(false)}
-                className="text-slate-400 hover:text-white text-lg font-bold"
+                className="text-slate-400 hover:text-slate-700 p-1"
               >
-                ×
+                <X size={18} />
               </button>
             </div>
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="text-slate-400 block mb-1">Partner Name *</label>
+                <label className="text-slate-600 font-semibold block mb-1">Partner Full Name</label>
                 <input
                   type="text"
                   required
+                  placeholder="e.g. David Partner Media"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="e.g. Acme Tech Reviews"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-800"
                 />
               </div>
+
               <div>
-                <label className="text-slate-400 block mb-1">Partner Email *</label>
+                <label className="text-slate-600 font-semibold block mb-1">Email Address</label>
                 <input
                   type="email"
                   required
+                  placeholder="e.g. david@partnermedia.com"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="partner@example.com"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-800"
                 />
               </div>
+
               <div>
-                <label className="text-slate-400 block mb-1">Website URL</label>
+                <label className="text-slate-600 font-semibold block mb-1">Website URL</label>
                 <input
                   type="url"
+                  placeholder="https://partnermedia.com"
                   value={newWebsite}
                   onChange={(e) => setNewWebsite(e.target.value)}
-                  placeholder="https://example.com"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-800"
                 />
               </div>
+
               <div>
-                <label className="text-slate-400 block mb-1">Commission Rate (%)</label>
+                <label className="text-slate-600 font-semibold block mb-1">Commission Rate (%)</label>
                 <input
                   type="number"
-                  step="0.5"
+                  min="1"
+                  max="50"
                   value={newRate}
                   onChange={(e) => setNewRate(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-800 font-bold"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+            <div className="flex justify-end gap-2 pt-4 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => setIsCreateOpen(false)}
@@ -417,7 +495,7 @@ export default function AffiliatesView({
                 disabled={loading}
                 className="btn-primary text-xs"
               >
-                {loading ? 'Creating...' : 'Create Affiliate (Admin)'}
+                {loading ? 'Creating...' : 'Create Affiliate Account'}
               </button>
             </div>
           </form>
@@ -426,4 +504,3 @@ export default function AffiliatesView({
     </div>
   );
 }
-

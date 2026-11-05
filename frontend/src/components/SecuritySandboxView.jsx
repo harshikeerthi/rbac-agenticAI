@@ -7,7 +7,10 @@ import {
   Terminal,
   Shield,
   Zap,
-  RotateCcw
+  RotateCcw,
+  Send,
+  Lock,
+  ArrowRight
 } from 'lucide-react';
 import { executeDirectApiCall } from '../api';
 
@@ -33,7 +36,7 @@ export default function SecuritySandboxView({ onRefreshAudit }) {
       headers: { 'x-demo-user-id': 'usr_aff_alice' },
       body: { name: 'Escalated Partner', email: 'hacked@affiliate.com' },
       expected: '403 Forbidden (INSUFFICIENT_PERMISSIONS)',
-      explanation: 'Alice has role [affiliate_user] which only has [affiliates:read:own, affiliates:update:own, commissions:read:own]. The backend strictly blocks the creation request because it requires [affiliates:create].'
+      explanation: 'Alice has role [affiliate_user] which only holds [affiliates:read:own, affiliates:update:own, commissions:read:own]. The backend strictly blocks the creation request because it requires [affiliates:create].'
     },
     {
       id: 'idor',
@@ -152,27 +155,32 @@ export default function SecuritySandboxView({ onRefreshAudit }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Overview Banner */}
-      <div className="panel p-6 border-indigo-900/40 bg-gradient-to-r from-slate-900 via-indigo-950/20 to-slate-900">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
-            <AlertOctagon size={24} />
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold flex-shrink-0">
+            <AlertOctagon size={18} />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Interactive Security Sandbox ("Tamper & Test" Playground)</h2>
-            <p className="text-xs text-slate-300">
-              Demonstrating server-enforced security: Execute simulated unauthorized attacks and inspect the live HTTP responses returned by the backend.
+            <div className="flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900">Security Sandbox & Attack Simulator</h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+                MODULE 3
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Demonstrating server-enforced boundaries: Fire unauthorized attacks and inspect live HTTP responses returned by the backend.
             </p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Left Column: Attack Vector Triggers */}
         <div className="lg:col-span-5 space-y-3">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-            <Zap size={14} className="text-amber-400" />
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+            <Zap size={14} className="text-amber-600" />
             Simulate Attack Scenarios (One-Click)
           </h3>
 
@@ -182,16 +190,18 @@ export default function SecuritySandboxView({ onRefreshAudit }) {
                 key={scenario.id}
                 onClick={() => runScenario(scenario)}
                 disabled={loading}
-                className="w-full btn-attack"
+                className="w-full p-3.5 rounded-xl border border-slate-200 bg-white hover:border-emerald-400 hover:shadow-card-hover text-left transition flex flex-col gap-1 group"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-indigo-200">{scenario.title}</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-900/60 text-indigo-300 border border-indigo-700/40">
+                  <span className="text-xs font-bold text-slate-900 group-hover:text-emerald-700 transition">
+                    {scenario.title}
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold border border-slate-200">
                     {scenario.method}
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-400 font-normal">{scenario.subtitle}</div>
-                <div className="text-[10px] text-amber-300/80 font-mono mt-0.5">
+                <div className="text-[11px] text-slate-500 font-normal leading-relaxed">{scenario.subtitle}</div>
+                <div className="text-[10px] text-emerald-700 font-mono mt-0.5 font-semibold">
                   Target: {scenario.path}
                 </div>
               </button>
@@ -199,15 +209,15 @@ export default function SecuritySandboxView({ onRefreshAudit }) {
           </div>
 
           {/* Custom Terminal Request Box */}
-          <div className="panel p-4 space-y-3 border-slate-700 mt-4">
-            <h4 className="text-xs font-bold text-slate-300 uppercase flex items-center gap-1.5">
-              <Terminal size={14} className="text-indigo-400" /> Custom API Call Tester
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm mt-4">
+            <h4 className="text-xs font-bold text-slate-700 uppercase flex items-center gap-1.5">
+              <Terminal size={14} className="text-purple-600" /> Custom API Call Tester
             </h4>
             <div className="grid grid-cols-3 gap-2">
               <select
                 value={customMethod}
                 onChange={(e) => setCustomMethod(e.target.value)}
-                className="bg-slate-900 text-xs text-white border border-slate-700 rounded p-1.5"
+                className="bg-slate-50 text-xs text-slate-800 border border-slate-300 rounded-lg p-2 font-bold"
               >
                 <option value="GET">GET</option>
                 <option value="POST">POST</option>
@@ -219,27 +229,27 @@ export default function SecuritySandboxView({ onRefreshAudit }) {
                 value={customPath}
                 onChange={(e) => setCustomPath(e.target.value)}
                 placeholder="/affiliates"
-                className="col-span-2 bg-slate-900 text-xs text-white border border-slate-700 rounded p-1.5 font-mono"
+                className="col-span-2 bg-slate-50 text-xs text-slate-800 border border-slate-300 rounded-lg p-2 font-mono"
               />
             </div>
             <div>
-              <label className="text-[10px] text-slate-400 block mb-0.5">Identity Header (x-demo-user-id)</label>
+              <label className="text-[10px] text-slate-500 font-semibold block mb-0.5">Identity Header (x-demo-user-id)</label>
               <input
                 type="text"
                 value={customHeader}
                 onChange={(e) => setCustomHeader(e.target.value)}
                 placeholder="usr_aff_alice"
-                className="w-full bg-slate-900 text-xs text-white border border-slate-700 rounded p-1.5 font-mono"
+                className="w-full bg-slate-50 text-xs text-slate-800 border border-slate-300 rounded-lg p-2 font-mono"
               />
             </div>
             {(customMethod === 'POST' || customMethod === 'PUT') && (
               <div>
-                <label className="text-[10px] text-slate-400 block mb-0.5">Request JSON Body</label>
+                <label className="text-[10px] text-slate-500 font-semibold block mb-0.5">Request JSON Body</label>
                 <textarea
                   rows={2}
                   value={customBody}
                   onChange={(e) => setCustomBody(e.target.value)}
-                  className="w-full bg-slate-900 text-xs text-white border border-slate-700 rounded p-1.5 font-mono"
+                  className="w-full bg-slate-50 text-xs text-slate-800 border border-slate-300 rounded-lg p-2 font-mono"
                 />
               </div>
             )}
@@ -255,21 +265,21 @@ export default function SecuritySandboxView({ onRefreshAudit }) {
 
         {/* Right Column: Live HTTP Response Inspector */}
         <div className="lg:col-span-7">
-          <div className="panel p-5 space-y-4 sticky top-24 border-slate-700">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 sticky top-24 shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2">
-                <Terminal size={18} className="text-emerald-400" />
-                <h3 className="text-sm font-bold text-white">Live Server Response Inspector</h3>
+                <Terminal size={18} className="text-emerald-700" />
+                <h3 className="text-sm font-bold text-slate-900">Live Server Response Inspector</h3>
               </div>
               {responseResult && (
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-mono text-slate-400">{responseResult.latencyMs}ms</span>
+                  <span className="text-[11px] font-mono text-slate-500">{responseResult.latencyMs}ms</span>
                   <span className={`badge ${
                     responseResult.status >= 200 && responseResult.status < 300
                       ? 'badge-success'
                       : responseResult.status === 401
-                      ? 'badge-agent'
-                      : 'badge-denied'
+                      ? 'badge-warning'
+                      : 'badge-danger'
                   }`}>
                     {responseResult.status} {responseResult.statusText || (responseResult.status === 403 ? 'Forbidden' : 'OK')}
                   </span>
@@ -278,19 +288,20 @@ export default function SecuritySandboxView({ onRefreshAudit }) {
             </div>
 
             {!responseResult ? (
-              <div className="p-12 text-center text-slate-500 space-y-2">
-                <AlertOctagon size={36} className="mx-auto text-slate-600" />
-                <p className="text-sm">Click any attack scenario on the left to fire a real HTTP request to the Express server.</p>
+              <div className="p-16 text-center text-slate-400 space-y-2">
+                <AlertOctagon size={40} className="mx-auto text-slate-300 mb-2" />
+                <p className="text-sm font-semibold text-slate-700">No attack executed yet</p>
+                <p className="text-xs text-slate-400">Click any simulated attack scenario on the left to fire a live HTTP request to the Express server.</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {/* Educational Explanation Box */}
                 {activeTestExplanation && (
-                  <div className="p-3.5 rounded-lg bg-slate-950/80 border border-indigo-900/50 space-y-1">
-                    <div className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
-                      <Shield size={14} /> Security Analysis: {activeTestTitle}
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                    <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <Shield size={14} className="text-emerald-700" /> Security Analysis: {activeTestTitle}
                     </div>
-                    <p className="text-xs text-slate-300 leading-relaxed">
+                    <p className="text-xs text-slate-600 leading-relaxed">
                       {activeTestExplanation}
                     </p>
                   </div>
@@ -298,11 +309,11 @@ export default function SecuritySandboxView({ onRefreshAudit }) {
 
                 {/* Raw JSON Payload */}
                 <div>
-                  <div className="flex justify-between items-center text-[11px] text-slate-400 font-mono mb-1.5">
+                  <div className="flex justify-between items-center text-[11px] text-slate-500 font-mono mb-1.5">
                     <span>Raw Backend JSON Body</span>
                     <span>Status Code: {responseResult.status}</span>
                   </div>
-                  <pre className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto max-h-80 leading-snug">
+                  <pre className="bg-slate-900 p-4 rounded-xl border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto max-h-80 leading-snug">
                     {JSON.stringify(responseResult.data, null, 2)}
                   </pre>
                 </div>
@@ -314,4 +325,3 @@ export default function SecuritySandboxView({ onRefreshAudit }) {
     </div>
   );
 }
-
