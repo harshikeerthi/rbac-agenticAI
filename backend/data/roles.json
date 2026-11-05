@@ -11,7 +11,9 @@
       "commissions:approve",
       "reports:read:aggregate",
       "activity:read",
-      "governance:admin"
+      "governance:admin",
+      "containment:read",
+      "containment:manage"
     ]
   },
   "affiliate_manager": {

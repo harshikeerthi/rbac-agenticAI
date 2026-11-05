@@ -1,0 +1,21 @@
+{
+  "usr_agent_spark": {
+    "agentId": "usr_agent_spark",
+    "agentName": "MarketPulse AI Agent",
+    "killSwitchEngaged": false,
+    "containmentMode": "NORMAL",
+    "circuitBreaker": {
+      "enabled": true,
+      "tripThreshold": 3,
+      "currentViolations": 0,
+      "isTripped": false
+    },
+    "lastTransition": {
+      "timestamp": "2026-11-05T11:00:00.000Z",
+      "previousMode": "NORMAL",
+      "newMode": "NORMAL",
+      "triggeredBy": "system",
+      "reason": "Initial platform initialization"
+    }
+  }
+}

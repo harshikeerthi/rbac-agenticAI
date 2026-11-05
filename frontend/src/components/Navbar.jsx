@@ -9,7 +9,8 @@ import {
   Grid,
   RotateCcw,
   UserCheck,
-  Sliders
+  Sliders,
+  ShieldAlert
 } from 'lucide-react';
 
 export default function Navbar({
@@ -31,6 +32,8 @@ export default function Navbar({
     }
   };
 
+  const isAdmin = currentUser?.role === 'admin';
+
   const rbacNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Shield },
     { id: 'affiliates', label: 'Affiliates', icon: Users },
@@ -39,6 +42,7 @@ export default function Navbar({
     { id: 'sandbox', label: 'Security Sandbox', icon: AlertOctagon },
     { id: 'activity', label: 'Decision Log', icon: FileText },
     { id: 'matrix', label: 'RBAC Matrix', icon: Grid },
+    ...(isAdmin ? [{ id: 'containment', label: 'Runtime Containment', icon: ShieldAlert }] : [])
   ];
 
   return (
@@ -112,18 +116,18 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Two-Module Navigation Header */}
+        {/* Three-Module Navigation Header */}
         <div className="border-t border-slate-800/80 pt-2 pb-1">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
             {/* Module Switcher Pills */}
-            <div className="flex items-center gap-1.5 p-1 bg-slate-950/80 border border-slate-800 rounded-xl w-fit">
+            <div className="flex items-center gap-1.5 p-1 bg-slate-950/80 border border-slate-800 rounded-xl w-fit flex-wrap">
               <button
                 type="button"
                 onClick={() => {
-                  if (activeTab === 'governance') setActiveTab('dashboard');
+                  if (activeTab === 'governance' || activeTab === 'containment') setActiveTab('dashboard');
                 }}
                 className={`flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-lg transition ${
-                  activeTab !== 'governance'
+                  activeTab !== 'governance' && activeTab !== 'containment'
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
                 }`}
@@ -143,6 +147,18 @@ export default function Navbar({
                 <Sliders size={14} />
                 Module 2: Agent Governance & Audit
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('containment')}
+                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                  activeTab === 'containment'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                }`}
+              >
+                <ShieldAlert size={14} />
+                Module 3: Runtime Containment
+              </button>
             </div>
 
             {/* Active Module Indicator Badge */}
@@ -150,18 +166,24 @@ export default function Navbar({
               <span>Active Scope:</span>
               <span
                 className={`px-2 py-0.5 rounded font-bold uppercase ${
-                  activeTab !== 'governance'
-                    ? 'bg-indigo-950/60 text-indigo-300 border border-indigo-800/50'
-                    : 'bg-purple-950/60 text-purple-300 border border-purple-800/50'
+                  activeTab === 'containment'
+                    ? 'bg-rose-950/60 text-rose-300 border border-rose-800/50'
+                    : activeTab === 'governance'
+                    ? 'bg-purple-950/60 text-purple-300 border border-purple-800/50'
+                    : 'bg-indigo-950/60 text-indigo-300 border border-indigo-800/50'
                 }`}
               >
-                {activeTab !== 'governance' ? 'Core Platform RBAC' : 'Autonomous AI Guardrails'}
+                {activeTab === 'containment'
+                  ? 'Kill Switch & Isolation'
+                  : activeTab === 'governance'
+                  ? 'Autonomous AI Guardrails'
+                  : 'Core Platform RBAC'}
               </span>
             </div>
           </div>
 
-          {/* Tab Navigation for Module 1 */}
-          {activeTab !== 'governance' ? (
+          {/* Sub-Navigation depending on active module */}
+          {activeTab !== 'governance' && activeTab !== 'containment' ? (
             <nav className="flex space-x-1 -mb-px overflow-x-auto">
               {rbacNavItems.map((item) => {
                 const Icon = item.icon;
@@ -182,10 +204,23 @@ export default function Navbar({
                 );
               })}
             </nav>
-          ) : (
+          ) : activeTab === 'governance' ? (
             <div className="py-1 text-xs text-slate-400 flex items-center justify-between">
               <span className="flex items-center gap-2 text-purple-300 font-semibold">
                 <Sliders size={14} /> Agent Governance & Audit Module is currently active.
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveTab('dashboard')}
+                className="text-xs text-indigo-400 hover:text-indigo-300 underline font-mono"
+              >
+                ← Return to Module 1 (RBAC Platform)
+              </button>
+            </div>
+          ) : (
+            <div className="py-1 text-xs text-slate-400 flex items-center justify-between">
+              <span className="flex items-center gap-2 text-rose-300 font-semibold">
+                <ShieldAlert size={14} /> Agent Kill Switch & Runtime Containment Module is currently active.
               </span>
               <button
                 type="button"

@@ -152,6 +152,87 @@ export async function getGovernanceAuditLogs() {
   return apiFetch('/governance/audit');
 }
 
+// 7. Agent Containment & Kill Switch Endpoints (Module 3)
+export async function getContainmentStatus() {
+  return apiFetch('/containment/status');
+}
+
+export async function setKillSwitch(engage, reason = '', agentId = 'usr_agent_spark') {
+  return apiFetch('/containment/kill-switch', {
+    method: 'POST',
+    body: JSON.stringify({ engage, reason, agentId })
+  });
+}
+
+export async function setContainmentMode(mode, reason = '', agentId = 'usr_agent_spark') {
+  return apiFetch('/containment/mode', {
+    method: 'POST',
+    body: JSON.stringify({ mode, reason, agentId })
+  });
+}
+
+export async function resetCircuitBreaker(reason = '', agentId = 'usr_agent_spark') {
+  return apiFetch('/containment/reset', {
+    method: 'POST',
+    body: JSON.stringify({ reason, agentId })
+  });
+}
+
+export async function getContainmentAudit() {
+  return apiFetch('/containment/audit');
+}
+
+/**
+ * Probes the backend as MarketPulse AI Agent to verify containment live
+ */
+export async function probeAgentEndpoint(endpointType) {
+  if (endpointType === 'aggregate_stats') {
+    const res = await fetch(`${API_BASE}/reports/aggregate-stats`, {
+      headers: {
+        'Accept': 'application/json',
+        'x-demo-user-id': 'usr_agent_spark'
+      }
+    });
+    const data = await res.json().catch(() => ({}));
+    return { status: res.status, ok: res.ok, data };
+  }
+
+  if (endpointType === 'propose_commission') {
+    const res = await fetch(`${API_BASE}/governance/dispatch`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'x-demo-user-id': 'usr_agent_spark'
+      },
+      body: JSON.stringify({
+        actionName: 'propose_commission_adjustment',
+        parameters: { targetAffiliateId: 'aff_alice', proposedRate: 16.5, reason: 'Live runtime probe test' }
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    return { status: res.status, ok: res.ok, data };
+  }
+
+  if (endpointType === 'prohibited_violation') {
+    const res = await fetch(`${API_BASE}/governance/dispatch`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'x-demo-user-id': 'usr_agent_spark'
+      },
+      body: JSON.stringify({
+        actionName: 'read_affiliate_pii'
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    return { status: res.status, ok: res.ok, data };
+  }
+
+  return { status: 400, ok: false, data: { message: 'Unknown probe type' } };
+}
+
 /**
  * Raw Request Runner for Security Sandbox
  * Allows custom headers and methods to test real-world attacks

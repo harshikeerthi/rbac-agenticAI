@@ -1,7 +1,7 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer, stopServer } from '../src/server.js';
-import { resetStore, createAgentProposal } from '../src/store.js';
+import { resetStore, createAgentProposal, getAllContainmentStates } from '../src/store.js';
 
 const PORT = 5055;
 const BASE_URL = `http://localhost:${PORT}/api`;
@@ -726,6 +726,590 @@ describe('Security & RBAC Authorization Suite', () => {
       body: JSON.stringify({ role: 'admin', actionName: 'query_aggregate_metrics' })
     });
     assert.equal(spoofRes.status, 403, 'Role spoofing in body must not grant admin governance access');
+  });
+
+  // =========================================================================
+  // MODULE 3: AGENT KILL SWITCH & RUNTIME CONTAINMENT TESTS (TC-34 to TC-45)
+  // =========================================================================
+
+  // TC-34: Admin can read containment status (200 OK)
+  test('TC-34: Authorized Admin reads agent containment status and circuit breaker (200 OK)', async () => {
+    await resetStore();
+    const res = await fetch(`${BASE_URL}/containment/status`, {
+      headers: { 'x-demo-user-id': 'usr_admin_alex' }
+    });
+    const body = await res.json();
+    assert.equal(res.status, 200);
+    assert.equal(body.success, true);
+    assert.equal(body.data.agentId, 'usr_agent_spark');
+    assert.equal(body.data.containmentMode, 'NORMAL');
+    assert.equal(body.data.killSwitchEngaged, false);
+    assert.equal(body.circuitBreaker.tripThreshold, 3);
+    assert.equal(body.circuitBreaker.currentViolations, 0);
+  });
+
+  // TC-35: Admin can activate the kill switch
+  test('TC-35: Authorized Admin activates emergency Kill Switch (200 OK, mode: TERMINATED)', async () => {
+    const res = await fetch(`${BASE_URL}/containment/kill-switch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_admin_alex',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        engage: true,
+        reason: 'Emergency containment test drill'
+      })
+    });
+    const body = await res.json();
+    assert.equal(res.status, 200);
+    assert.equal(body.success, true);
+    assert.equal(body.data.killSwitchEngaged, true);
+    assert.equal(body.data.containmentMode, 'TERMINATED');
+    assert.equal(body.data.lastTransition.triggeredBy, 'usr_admin_alex');
+  });
+
+  // TC-36: MarketPulse aggregate-stat requests return HTTP 503 when terminated
+  test('TC-36: MarketPulse aggregate stats request blocked with 503 AGENT_CONTAINMENT_ACTIVE when terminated', async () => {
+    // Kill switch is currently engaged from TC-35
+    const res = await fetch(`${BASE_URL}/reports/aggregate-stats`, {
+      headers: { 'x-demo-user-id': 'usr_agent_spark' }
+    });
+    const body = await res.json();
+    assert.equal(res.status, 503);
+    assert.equal(body.code, 'AGENT_CONTAINMENT_ACTIVE');
+    assert.equal(body.containmentMode, 'TERMINATED');
+    assert.equal(body.killSwitchEngaged, true);
+  });
+
+  // TC-37: MarketPulse governance dispatch returns HTTP 503 when terminated
+  test('TC-37: MarketPulse governance dispatch blocked with 503 AGENT_CONTAINMENT_ACTIVE when terminated', async () => {
+    const res = await fetch(`${BASE_URL}/governance/dispatch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_agent_spark',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ actionName: 'query_aggregate_metrics' })
+    });
+    const body = await res.json();
+    assert.equal(res.status, 503);
+    assert.equal(body.code, 'AGENT_CONTAINMENT_ACTIVE');
+    assert.equal(body.containmentMode, 'TERMINATED');
+  });
+
+  // TC-38: Human administrator requests remain unaffected
+  test('TC-38: Human users (Admin, Manager, Affiliate) remain completely unaffected by active Kill Switch', async () => {
+    // Admin reads aggregate stats -> 200 OK
+    const adminRes = await fetch(`${BASE_URL}/reports/aggregate-stats`, {
+      headers: { 'x-demo-user-id': 'usr_admin_alex' }
+    });
+    assert.equal(adminRes.status, 200);
+
+    // Manager reads affiliates -> 200 OK
+    const mgrRes = await fetch(`${BASE_URL}/affiliates`, {
+      headers: { 'x-demo-user-id': 'usr_mgr_sarah' }
+    });
+    assert.equal(mgrRes.status, 200);
+
+    // Affiliate Alice reads own commissions -> 200 OK
+    const affRes = await fetch(`${BASE_URL}/commissions`, {
+      headers: { 'x-demo-user-id': 'usr_aff_alice' }
+    });
+    assert.equal(affRes.status, 200);
+  });
+
+  // TC-39: Non-admin users cannot activate or reset containment
+  test('TC-39: Non-admin users (Manager, Affiliate, Agent) cannot manage containment (403 INSUFFICIENT_PERMISSIONS)', async () => {
+    // Sarah tries to disengage kill switch
+    const sarahRes = await fetch(`${BASE_URL}/containment/kill-switch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_mgr_sarah',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ engage: false, reason: 'Manager attempt' })
+    });
+    assert.equal(sarahRes.status, 403);
+    const sarahBody = await sarahRes.json();
+    assert.equal(sarahBody.code, 'INSUFFICIENT_PERMISSIONS');
+
+    // Alice tries to change mode
+    const aliceRes = await fetch(`${BASE_URL}/containment/mode`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_aff_alice',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ mode: 'NORMAL', reason: 'Affiliate attempt' })
+    });
+    assert.equal(aliceRes.status, 403);
+
+    // Agent MarketPulse tries to reset
+    const agentRes = await fetch(`${BASE_URL}/containment/reset`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_agent_spark',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ reason: 'Self reset attempt' })
+    });
+    assert.ok([403, 503].includes(agentRes.status));
+  });
+
+  // TC-40: QUARANTINE blocks autonomous execution and proposal submissions
+  test('TC-40: QUARANTINE mode blocks proposals with 403 AGENT_QUARANTINED but allows read-only aggregate diagnostics', async () => {
+    // Admin sets mode to QUARANTINE
+    const modeRes = await fetch(`${BASE_URL}/containment/mode`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_admin_alex',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        mode: 'QUARANTINE',
+        reason: 'Quarantine investigation active'
+      })
+    });
+    assert.equal(modeRes.status, 200);
+
+    // 1. MarketPulse submitting proposal is blocked (403 AGENT_QUARANTINED)
+    const propRes = await fetch(`${BASE_URL}/governance/dispatch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_agent_spark',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        actionName: 'propose_commission_adjustment',
+        parameters: { targetAffiliateId: 'aff_alice', proposedRate: 15.0, reason: 'Quarantined attempt' }
+      })
+    });
+    const propBody = await propRes.json();
+    assert.equal(propRes.status, 403);
+    assert.equal(propBody.code, 'AGENT_QUARANTINED');
+
+    // 2. MarketPulse reading aggregate stats is permitted (200 OK)
+    const readRes = await fetch(`${BASE_URL}/reports/aggregate-stats`, {
+      headers: { 'x-demo-user-id': 'usr_agent_spark' }
+    });
+    assert.equal(readRes.status, 200);
+
+    // 3. MarketPulse dispatching query_aggregate_metrics is permitted (200 OK)
+    const dispatchReadRes = await fetch(`${BASE_URL}/governance/dispatch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_agent_spark',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ actionName: 'query_aggregate_metrics' })
+    });
+    assert.equal(dispatchReadRes.status, 200);
+  });
+
+  // TC-41: Three prohibited actions trigger automatic quarantine
+  test('TC-41: Three prohibited actions automatically trip the Safety Circuit Breaker into QUARANTINE', async () => {
+    await resetStore(); // Restores agent to NORMAL with 0 violations
+
+    // 1st violation
+    const v1 = await fetch(`${BASE_URL}/governance/dispatch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_agent_spark',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ actionName: 'read_affiliate_pii' })
+    });
+    assert.equal(v1.status, 403);
+
+    // 2nd violation
+    const v2 = await fetch(`${BASE_URL}/governance/dispatch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_agent_spark',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ actionName: 'export_customer_emails' })
+    });
+    assert.equal(v2.status, 403);
+
+    // Verify still in NORMAL mode with 2 violations
+    const midStatusRes = await fetch(`${BASE_URL}/containment/status`, {
+      headers: { 'x-demo-user-id': 'usr_admin_alex' }
+    });
+    const midStatus = await midStatusRes.json();
+    assert.equal(midStatus.data.containmentMode, 'NORMAL');
+    assert.equal(midStatus.circuitBreaker.currentViolations, 2);
+
+    // 3rd violation -> Trips Circuit Breaker!
+    const v3 = await fetch(`${BASE_URL}/governance/dispatch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_agent_spark',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ actionName: 'read_affiliate_pii' })
+    });
+    assert.equal(v3.status, 403);
+
+    // Verify status is now automatically QUARANTINE
+    const postStatusRes = await fetch(`${BASE_URL}/containment/status`, {
+      headers: { 'x-demo-user-id': 'usr_admin_alex' }
+    });
+    const postStatus = await postStatusRes.json();
+    assert.equal(postStatus.data.containmentMode, 'QUARANTINE');
+    assert.equal(postStatus.circuitBreaker.isTripped, true);
+    assert.equal(postStatus.circuitBreaker.currentViolations, 3);
+
+    // Verify proposal submission is now blocked by quarantine
+    const propRes = await fetch(`${BASE_URL}/governance/dispatch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_agent_spark',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        actionName: 'propose_commission_adjustment',
+        parameters: { targetAffiliateId: 'aff_bob', proposedRate: 16.0, reason: 'Blocked test' }
+      })
+    });
+    assert.equal(propRes.status, 403);
+    const propBody = await propRes.json();
+    assert.equal(propBody.code, 'AGENT_QUARANTINED');
+  });
+
+  // TC-42: Authorized reset restores NORMAL mode
+  test('TC-42: Authorized Admin reset clears circuit breaker and restores NORMAL mode (200 OK)', async () => {
+    // Admin resets circuit breaker
+    const resetRes = await fetch(`${BASE_URL}/containment/reset`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_admin_alex',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        reason: 'Security team verified incident resolution and cleared breach logs'
+      })
+    });
+    const resetBody = await resetRes.json();
+    assert.equal(resetRes.status, 200);
+    assert.equal(resetBody.success, true);
+    assert.equal(resetBody.data.containmentMode, 'NORMAL');
+    assert.equal(resetBody.data.circuitBreaker.currentViolations, 0);
+    assert.equal(resetBody.data.circuitBreaker.isTripped, false);
+
+    // MarketPulse proposal submission is now functional again
+    const propRes = await fetch(`${BASE_URL}/governance/dispatch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_agent_spark',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        actionName: 'propose_commission_adjustment',
+        parameters: { targetAffiliateId: 'aff_bob', proposedRate: 14.5, reason: 'Post reset proposal' }
+      })
+    });
+    assert.equal(propRes.status, 202);
+    const propBody = await propRes.json();
+    assert.equal(propBody.outcome, 'QUEUED_FOR_APPROVAL');
+  });
+
+  // TC-43: State persists across server restarts
+  test('TC-43: Containment state persists across simulated server restart', async () => {
+    // 1. Admin engages kill switch
+    await fetch(`${BASE_URL}/containment/kill-switch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_admin_alex',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ engage: true, reason: 'Persistence test termination' })
+    });
+
+    // 2. Restart backend server
+    await stopServer();
+    await startServer(PORT);
+
+    // 3. Status must still be TERMINATED
+    const statusRes = await fetch(`${BASE_URL}/containment/status`, {
+      headers: { 'x-demo-user-id': 'usr_admin_alex' }
+    });
+    const statusBody = await statusRes.json();
+    assert.equal(statusBody.data.containmentMode, 'TERMINATED');
+    assert.equal(statusBody.data.killSwitchEngaged, true);
+    assert.equal(statusBody.data.lastTransition.reason, 'Persistence test termination');
+
+    // 4. Agent requests must still be blocked by 503
+    const agentRes = await fetch(`${BASE_URL}/reports/aggregate-stats`, {
+      headers: { 'x-demo-user-id': 'usr_agent_spark' }
+    });
+    assert.equal(agentRes.status, 503);
+
+    // Clean up: Reset store for following tests/suite clean exit
+    await resetStore();
+  });
+
+  // TC-44: Every transition is recorded in the audit log
+  test('TC-44: Containment audit log records state transitions and administrative actions', async () => {
+    // Trigger known containment transitions
+    await fetch(`${BASE_URL}/containment/kill-switch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_admin_alex',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ engage: true, reason: 'Audit drill engagement' })
+    });
+
+    await fetch(`${BASE_URL}/containment/reset`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_admin_alex',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ reason: 'Audit drill reset' })
+    });
+
+    const auditRes = await fetch(`${BASE_URL}/containment/audit`, {
+      headers: { 'x-demo-user-id': 'usr_admin_alex' }
+    });
+    assert.equal(auditRes.status, 200);
+    const auditBody = await auditRes.json();
+    assert.ok(Array.isArray(auditBody.data));
+
+    const eventTypes = auditBody.data.map(e => e.eventType);
+    assert.ok(eventTypes.includes('KILL_SWITCH_ENGAGED'), 'Must record KILL_SWITCH_ENGAGED');
+    assert.ok(eventTypes.includes('CIRCUIT_BREAKER_RESET'), 'Must record CIRCUIT_BREAKER_RESET');
+  });
+
+  // TC-45: Audit logs cannot be modified through an unauthorized API
+  test('TC-45: Containment audit log cannot be modified, replaced or deleted through API (404 Not Found)', async () => {
+    // Attempting PUT on audit log returns 404
+    const putRes = await fetch(`${BASE_URL}/containment/audit`, {
+      method: 'PUT',
+      headers: {
+        'x-demo-user-id': 'usr_admin_alex',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ data: [] })
+    });
+    assert.equal(putRes.status, 404);
+
+    // Attempting DELETE on audit log returns 404
+    const delRes = await fetch(`${BASE_URL}/containment/audit`, {
+      method: 'DELETE',
+      headers: { 'x-demo-user-id': 'usr_admin_alex' }
+    });
+    assert.equal(delRes.status, 404);
+
+    // Attempting POST directly on audit log returns 404
+    const postRes = await fetch(`${BASE_URL}/containment/audit`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_admin_alex',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ eventType: 'FORGED_EVENT' })
+    });
+    assert.equal(postRes.status, 404);
+
+    // Reset store to return environment to clean seed state
+    await resetStore();
+  });
+
+  // TC-46: Redundant kill switch activation returns 400 ALREADY_ENGAGED without duplicate audit
+  test('TC-46: Redundant kill switch activation returns 400 ALREADY_ENGAGED without duplicate audit', async () => {
+    await resetStore();
+    // 1. Engage kill switch
+    const engageRes1 = await fetch(`${BASE_URL}/containment/kill-switch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_admin_alex',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ engage: true, reason: 'Initial emergency drill' })
+    });
+    assert.equal(engageRes1.status, 200);
+
+    // 2. Count audit records
+    const auditRes1 = await fetch(`${BASE_URL}/containment/audit`, {
+      headers: { 'x-demo-user-id': 'usr_admin_alex' }
+    });
+    const audit1 = await auditRes1.json();
+    const countBefore = audit1.data.length;
+
+    // 3. Attempt redundant engagement
+    const engageRes2 = await fetch(`${BASE_URL}/containment/kill-switch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_admin_alex',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ engage: true, reason: 'Redundant second engagement attempt' })
+    });
+    assert.equal(engageRes2.status, 400);
+    const body2 = await engageRes2.json();
+    assert.equal(body2.code, 'ALREADY_ENGAGED');
+
+    // 4. Verify no duplicate audit was appended
+    const auditRes2 = await fetch(`${BASE_URL}/containment/audit`, {
+      headers: { 'x-demo-user-id': 'usr_admin_alex' }
+    });
+    const audit2 = await auditRes2.json();
+    assert.equal(audit2.data.length, countBefore, 'Audit log length must remain identical after rejected redundant engagement');
+  });
+
+  // TC-47: Kill switch deactivation records KILL_SWITCH_DISENGAGED in audit stream
+  test('TC-47: Kill switch deactivation records KILL_SWITCH_DISENGAGED in audit stream', async () => {
+    // Disengage kill switch with reason
+    const disengageRes = await fetch(`${BASE_URL}/containment/kill-switch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_admin_alex',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ engage: false, reason: 'Security clearance verified by SecOps' })
+    });
+    assert.equal(disengageRes.status, 200);
+    const disengageBody = await disengageRes.json();
+    assert.equal(disengageBody.data.killSwitchEngaged, false);
+    assert.equal(disengageBody.data.containmentMode, 'NORMAL');
+
+    // Check audit stream
+    const auditRes = await fetch(`${BASE_URL}/containment/audit`, {
+      headers: { 'x-demo-user-id': 'usr_admin_alex' }
+    });
+    const auditBody = await auditRes.json();
+    const disengageLog = auditBody.data.find(l => l.eventType === 'KILL_SWITCH_DISENGAGED');
+    assert.ok(disengageLog, 'Must record KILL_SWITCH_DISENGAGED event in audit stream');
+    assert.equal(disengageLog.triggeredBy, 'usr_admin_alex');
+    assert.equal(disengageLog.reason, 'Security clearance verified by SecOps');
+  });
+
+  // TC-48: Agent requests fail closed (HTTP 503 CONTAINMENT_STATE_INVALID) when state is unreadable
+  test('TC-48: Agent requests fail closed (HTTP 503 CONTAINMENT_STATE_INVALID) when state is unreadable', async () => {
+    // Simulate corrupt state by clearing in-memory containment state for the agent
+    const states = getAllContainmentStates();
+    const originalSparkState = states.usr_agent_spark;
+    delete states.usr_agent_spark;
+
+    try {
+      const res = await fetch(`${BASE_URL}/reports/aggregate-stats`, {
+        headers: { 'x-demo-user-id': 'usr_agent_spark' }
+      });
+      const body = await res.json();
+      assert.equal(res.status, 503);
+      assert.equal(body.code, 'CONTAINMENT_STATE_INVALID');
+      assert.equal(body.success, false);
+    } finally {
+      // Restore valid state
+      states.usr_agent_spark = originalSparkState;
+    }
+  });
+
+  // TC-49: Queued proposals cannot be executed by agent; proposal submissions blocked in QUARANTINE
+  test('TC-49: Queued proposals cannot be executed by agent; proposal submissions blocked in QUARANTINE', async () => {
+    await resetStore();
+
+    // 1. Submit proposal while NORMAL
+    const propRes = await fetch(`${BASE_URL}/governance/dispatch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_agent_spark',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        actionName: 'propose_commission_adjustment',
+        parameters: { targetAffiliateId: 'aff_alice', proposedRate: 15.5, reason: 'Pending proposal test' }
+      })
+    });
+    assert.equal(propRes.status, 202);
+    const propData = await propRes.json();
+    const proposalId = propData.proposal.id;
+
+    // 2. Admin shifts agent to QUARANTINE
+    await fetch(`${BASE_URL}/containment/mode`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_admin_alex',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ mode: 'QUARANTINE', reason: 'Audit hold' })
+    });
+
+    // 3. Agent attempts to approve its own proposal -> Blocked by RBAC and containment
+    const agentApproveRes = await fetch(`${BASE_URL}/governance/proposals/${proposalId}/approve`, {
+      method: 'POST',
+      headers: { 'x-demo-user-id': 'usr_agent_spark' }
+    });
+    assert.equal(agentApproveRes.status, 403);
+
+    // 4. Agent attempts new proposal while quarantined -> Blocked with 403 AGENT_QUARANTINED
+    const newPropRes = await fetch(`${BASE_URL}/governance/dispatch`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_agent_spark',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        actionName: 'propose_commission_adjustment',
+        parameters: { targetAffiliateId: 'aff_bob', proposedRate: 14.0, reason: 'Blocked quarantine attempt' }
+      })
+    });
+    assert.equal(newPropRes.status, 403);
+    const newPropBody = await newPropRes.json();
+    assert.equal(newPropBody.code, 'AGENT_QUARANTINED');
+
+    // 5. Rate remains unchanged until human admin explicitly approves
+    const affCheck = await fetch(`${BASE_URL}/affiliates/aff_alice`, {
+      headers: { 'x-demo-user-id': 'usr_admin_alex' }
+    });
+    const affData = await affCheck.json();
+    assert.notEqual(affData.data.commissionRate, 15.5, 'Rate must not update without administrator approval');
+  });
+
+  // TC-50: Beyond-threshold violation accumulation is safely recorded without state divergence
+  test('TC-50: Violations beyond threshold (e.g. 5 attempts) are tracked safely without breaking circuit breaker state', async () => {
+    await resetStore();
+
+    // Send 5 prohibited attempts
+    for (let i = 1; i <= 5; i++) {
+      const res = await fetch(`${BASE_URL}/governance/dispatch`, {
+        method: 'POST',
+        headers: {
+          'x-demo-user-id': 'usr_agent_spark',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ actionName: 'read_affiliate_pii' })
+      });
+      assert.equal(res.status, 403);
+    }
+
+    // Status must accurately reflect 5 violations, tripped = true, mode = QUARANTINE
+    const statusRes = await fetch(`${BASE_URL}/containment/status`, {
+      headers: { 'x-demo-user-id': 'usr_admin_alex' }
+    });
+    const statusBody = await statusRes.json();
+    assert.equal(statusBody.data.containmentMode, 'QUARANTINE');
+    assert.equal(statusBody.circuitBreaker.currentViolations, 5);
+    assert.equal(statusBody.circuitBreaker.isTripped, true);
+
+    // Resetting restores violations to 0 and mode to NORMAL
+    const resetRes = await fetch(`${BASE_URL}/containment/reset`, {
+      method: 'POST',
+      headers: {
+        'x-demo-user-id': 'usr_admin_alex',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ reason: 'Admin cleared elevated violation count' })
+    });
+    assert.equal(resetRes.status, 200);
+    const resetBody = await resetRes.json();
+    assert.equal(resetBody.data.circuitBreaker.currentViolations, 0);
+    assert.equal(resetBody.data.containmentMode, 'NORMAL');
+
+    await resetStore();
   });
 });
 

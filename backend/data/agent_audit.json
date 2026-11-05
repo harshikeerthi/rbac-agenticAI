@@ -1,16 +1,5 @@
 [
   {
-    "id": "gaudit_1793776827537_susxn",
-    "timestamp": "2026-11-04T07:20:27.537Z",
-    "agentId": "usr_agent_spark",
-    "actionName": "propose_commission_adjustment",
-    "policyEvaluated": "HUMAN_IN_THE_LOOP_APPROVAL",
-    "outcome": "REJECTED_BY_ADMIN",
-    "details": "Admin usr_admin_alex rejected proposal [prop_1793776827535_tg2s]: Sales volume dropped in October",
-    "actorId": "usr_admin_alex",
-    "reviewerId": "usr_admin_alex"
-  },
-  {
     "id": "gaudit_seed_001",
     "timestamp": "2026-11-03T12:00:00.000Z",
     "agentId": "system",

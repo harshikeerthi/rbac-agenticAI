@@ -3,6 +3,7 @@ import cors from 'cors';
 import { fileURLToPath } from 'node:url';
 import { initStore, getUsers, getRoles } from './store.js';
 import { authenticateDemoUser } from './middleware/auth.js';
+import { enforceAgentContainment } from './middleware/containment.js';
 
 // Route imports
 import systemRoutes from './routes/system.js';
@@ -12,6 +13,7 @@ import commissionRoutes from './routes/commissions.js';
 import reportRoutes from './routes/reports.js';
 import activityRoutes from './routes/activity.js';
 import governanceRoutes from './routes/governance.js';
+import containmentRoutes from './routes/containment.js';
 
 const app = express();
 
@@ -52,7 +54,10 @@ app.get('/api/roles', (req, res) => {
 // 2. Simulated Authentication Middleware (enforced for all remaining /api/* routes)
 app.use('/api', authenticateDemoUser);
 
-// 3. Protected Resource Routes
+// 3. Runtime Containment Middleware (Enforced on AI agent identity prior to route execution)
+app.use('/api', enforceAgentContainment);
+
+// 4. Protected Resource Routes
 app.use('/api', systemRoutes); // /api/reset-data (protected)
 app.use('/api', authRoutes); // /api/me (protected)
 app.use('/api/affiliates', affiliateRoutes);
@@ -60,6 +65,7 @@ app.use('/api/commissions', commissionRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/governance', governanceRoutes);
+app.use('/api/containment', containmentRoutes);
 
 // 4. Fallback 404 handler for unknown routes
 app.use('/api/*', (req, res) => {
