@@ -118,7 +118,7 @@ const CANONICAL_LOGS = [
   }
 ];
 
-// Canonical seed data for Agent Governance & Audit
+// Canonical seed data for Agent Governance & Audit (Module 2)
 const CANONICAL_AGENT_POLICIES = {
   usr_agent_spark: {
     agentId: "usr_agent_spark",
@@ -173,6 +173,43 @@ const CANONICAL_AGENT_AUDIT = [
   }
 ];
 
+// Canonical seed data for Agent Kill Switch & Runtime Containment (Module 3)
+const CANONICAL_CONTAINMENT_STATE = {
+  usr_agent_spark: {
+    agentId: "usr_agent_spark",
+    agentName: "MarketPulse AI Agent",
+    killSwitchEngaged: false,
+    containmentMode: "NORMAL", // 'NORMAL', 'QUARANTINE', 'TERMINATED'
+    circuitBreaker: {
+      enabled: true,
+      tripThreshold: 3,
+      currentViolations: 0,
+      isTripped: false
+    },
+    lastTransition: {
+      timestamp: "2026-11-05T11:00:00.000Z",
+      previousMode: "NORMAL",
+      newMode: "NORMAL",
+      triggeredBy: "system",
+      reason: "Initial platform initialization"
+    }
+  }
+};
+
+const CANONICAL_CONTAINMENT_AUDIT = [
+  {
+    id: "c_audit_seed_001",
+    timestamp: "2026-11-05T11:00:00.000Z",
+    agentId: "system",
+    eventType: "SYSTEM_INIT",
+    previousMode: "NORMAL",
+    newMode: "NORMAL",
+    triggeredBy: "system",
+    reason: "Agent Kill Switch & Runtime Containment subsystem initialized.",
+    details: "Subsystem online with NORMAL, QUARANTINE, and TERMINATED containment support."
+  }
+];
+
 // In-memory working copies for low-latency operations and test isolation
 let roles = {};
 let users = [];
@@ -182,6 +219,8 @@ let activityLogs = [];
 let agentPolicies = {};
 let agentProposals = [];
 let agentAuditLogs = [];
+let containmentState = {};
+let containmentAuditLogs = [];
 
 // Helper to safely read a JSON file
 async function readJson(filename) {
@@ -232,6 +271,16 @@ export async function initStore() {
   } catch {
     agentAuditLogs = JSON.parse(JSON.stringify(CANONICAL_AGENT_AUDIT));
   }
+  try {
+    containmentState = await readJson('containment_state.json');
+  } catch {
+    containmentState = JSON.parse(JSON.stringify(CANONICAL_CONTAINMENT_STATE));
+  }
+  try {
+    containmentAuditLogs = await readJson('containment_audit.json');
+  } catch {
+    containmentAuditLogs = JSON.parse(JSON.stringify(CANONICAL_CONTAINMENT_AUDIT));
+  }
 }
 
 /**
@@ -244,6 +293,8 @@ export async function resetStore() {
   agentPolicies = JSON.parse(JSON.stringify(CANONICAL_AGENT_POLICIES));
   agentProposals = JSON.parse(JSON.stringify(CANONICAL_AGENT_PROPOSALS));
   agentAuditLogs = JSON.parse(JSON.stringify(CANONICAL_AGENT_AUDIT));
+  containmentState = JSON.parse(JSON.stringify(CANONICAL_CONTAINMENT_STATE));
+  containmentAuditLogs = JSON.parse(JSON.stringify(CANONICAL_CONTAINMENT_AUDIT));
 
   await writeJson('affiliates.json', affiliates);
   await writeJson('commissions.json', commissions);
@@ -251,6 +302,8 @@ export async function resetStore() {
   await writeJson('agent_policies.json', agentPolicies);
   await writeJson('agent_proposals.json', agentProposals);
   await writeJson('agent_audit.json', agentAuditLogs);
+  await writeJson('containment_state.json', containmentState);
+  await writeJson('containment_audit.json', containmentAuditLogs);
 
   roles = await readJson('roles.json');
   users = await readJson('users.json');
@@ -292,7 +345,7 @@ export function getActivityLogs() {
 }
 
 /**
- * Agent Governance Getters
+ * Agent Governance Getters (Module 2)
  */
 export function getAgentPolicies() {
   return agentPolicies;
@@ -315,7 +368,22 @@ export function getAgentAuditLogs() {
 }
 
 /**
- * Mutators with persistence to JSON files
+ * Agent Containment Getters (Module 3)
+ */
+export function getContainmentState(agentId = 'usr_agent_spark') {
+  return containmentState[agentId] || null;
+}
+
+export function getAllContainmentStates() {
+  return containmentState;
+}
+
+export function getContainmentAuditLogs() {
+  return containmentAuditLogs;
+}
+
+/**
+ * Mutators with persistence to JSON files (Module 1)
  */
 export async function addAffiliate(newAffiliate) {
   affiliates.push(newAffiliate);
@@ -367,7 +435,7 @@ export async function logActivity(entry) {
 }
 
 /**
- * Agent Governance Mutators & Revalidation
+ * Agent Governance Mutators & Revalidation (Module 2)
  */
 
 export async function createAgentProposal({ agentId, agentName, actionName, targetAffiliateId, proposedRate, reason }) {
@@ -394,15 +462,6 @@ export async function createAgentProposal({ agentId, agentName, actionName, targ
   return proposal;
 }
 
-/**
- * Approves an agent proposal with full safety revalidations:
- * 1. Approver must be an authorized admin.
- * 2. Self-approval is strictly disallowed.
- * 3. Proposal must exist and be currently 'pending'.
- * 4. Target affiliate must exist.
- * 5. Proposed commission rate must be numeric and within safe range [1.0%, 50.0%].
- * 6. Valid reason must be present.
- */
 export async function approveAgentProposal(proposalId, adminUser, resolutionNotes = '') {
   if (!adminUser || adminUser.role !== 'admin') {
     return {
@@ -499,9 +558,6 @@ export async function approveAgentProposal(proposalId, adminUser, resolutionNote
   };
 }
 
-/**
- * Rejects an agent proposal with validation
- */
 export async function rejectAgentProposal(proposalId, adminUser, reason = '') {
   if (!adminUser || adminUser.role !== 'admin') {
     return {
@@ -559,9 +615,6 @@ export async function rejectAgentProposal(proposalId, adminUser, reason = '') {
   };
 }
 
-/**
- * Protected Append-Only Agent Governance Audit Logger
- */
 export async function logAgentAudit(entry) {
   const auditItem = {
     id: `gaudit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -575,5 +628,294 @@ export async function logAgentAudit(entry) {
   }
 
   await writeJson('agent_audit.json', agentAuditLogs);
+  return auditItem;
+}
+
+/**
+ * Agent Kill Switch & Runtime Containment Mutators (Module 3)
+ */
+
+/**
+ * Toggles the emergency Kill Switch for an agent runtime.
+ * Requires an authorized admin and a mandatory justification reason.
+ */
+export async function setKillSwitch(agentId = 'usr_agent_spark', engage, adminUser, reason = '') {
+  if (!adminUser || adminUser.role !== 'admin') {
+    return {
+      success: false,
+      code: 'UNAUTHORIZED_ADMIN',
+      message: 'Access Denied: Only an authorized Administrator can manage the Agent Kill Switch.'
+    };
+  }
+
+  if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+    return {
+      success: false,
+      code: 'INVALID_REASON',
+      message: 'Containment Safety Requirement: A valid administrative reason must be provided.'
+    };
+  }
+
+  if (!containmentState[agentId]) {
+    containmentState[agentId] = JSON.parse(JSON.stringify(CANONICAL_CONTAINMENT_STATE.usr_agent_spark));
+  }
+
+  const state = containmentState[agentId];
+  const previousMode = state.containmentMode;
+
+  if (engage && state.killSwitchEngaged && state.containmentMode === 'TERMINATED') {
+    return {
+      success: false,
+      code: 'ALREADY_ENGAGED',
+      message: `Kill Switch is already ENGAGED for agent [${agentId}].`
+    };
+  }
+
+  if (!engage && !state.killSwitchEngaged && state.containmentMode === 'NORMAL') {
+    return {
+      success: false,
+      code: 'ALREADY_DISENGAGED',
+      message: `Kill Switch is already DISENGAGED (NORMAL operational mode) for agent [${agentId}].`
+    };
+  }
+
+  const newMode = engage ? 'TERMINATED' : 'NORMAL';
+  state.killSwitchEngaged = engage;
+  state.containmentMode = newMode;
+  if (!engage) {
+    state.circuitBreaker.isTripped = false;
+    state.circuitBreaker.currentViolations = 0;
+  }
+
+  state.lastTransition = {
+    timestamp: new Date().toISOString(),
+    previousMode,
+    newMode,
+    triggeredBy: adminUser.id,
+    reason: reason.trim()
+  };
+
+  await writeJson('containment_state.json', containmentState);
+
+  const eventType = engage ? 'KILL_SWITCH_ENGAGED' : 'KILL_SWITCH_DISENGAGED';
+  await logContainmentAudit({
+    agentId,
+    eventType,
+    previousMode,
+    newMode,
+    triggeredBy: adminUser.id,
+    reason: reason.trim(),
+    details: engage
+      ? `Emergency Kill Switch engaged by Admin ${adminUser.id}. Agent runtime terminated.`
+      : `Kill Switch disengaged by Admin ${adminUser.id}. Agent runtime restored to NORMAL.`
+  });
+
+  return {
+    success: true,
+    containment: state
+  };
+}
+
+/**
+ * Changes the containment mode (NORMAL, QUARANTINE, TERMINATED).
+ */
+export async function setContainmentMode(agentId = 'usr_agent_spark', mode, adminUser, reason = '') {
+  if (!adminUser || adminUser.role !== 'admin') {
+    return {
+      success: false,
+      code: 'UNAUTHORIZED_ADMIN',
+      message: 'Access Denied: Only an authorized Administrator can change Agent Containment modes.'
+    };
+  }
+
+  const validModes = ['NORMAL', 'QUARANTINE', 'TERMINATED'];
+  if (!validModes.includes(mode)) {
+    return {
+      success: false,
+      code: 'INVALID_CONTAINMENT_MODE',
+      message: `Invalid mode [${mode}]. Permitted modes: ${validModes.join(', ')}.`
+    };
+  }
+
+  if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+    return {
+      success: false,
+      code: 'INVALID_REASON',
+      message: 'Containment Safety Requirement: A valid administrative reason must be provided.'
+    };
+  }
+
+  if (!containmentState[agentId]) {
+    containmentState[agentId] = JSON.parse(JSON.stringify(CANONICAL_CONTAINMENT_STATE.usr_agent_spark));
+  }
+
+  const state = containmentState[agentId];
+  if (state.containmentMode === mode) {
+    return {
+      success: false,
+      code: 'ALREADY_IN_MODE',
+      message: `Agent [${agentId}] is already operating in [${mode}] mode.`
+    };
+  }
+
+  const previousMode = state.containmentMode;
+  state.containmentMode = mode;
+  state.killSwitchEngaged = (mode === 'TERMINATED');
+  if (mode === 'NORMAL') {
+    state.circuitBreaker.isTripped = false;
+    state.circuitBreaker.currentViolations = 0;
+  }
+
+  state.lastTransition = {
+    timestamp: new Date().toISOString(),
+    previousMode,
+    newMode: mode,
+    triggeredBy: adminUser.id,
+    reason: reason.trim()
+  };
+
+  await writeJson('containment_state.json', containmentState);
+
+  await logContainmentAudit({
+    agentId,
+    eventType: 'MODE_TRANSITION',
+    previousMode,
+    newMode: mode,
+    triggeredBy: adminUser.id,
+    reason: reason.trim(),
+    details: `Containment mode transitioned from ${previousMode} to ${mode} by Admin ${adminUser.id}.`
+  });
+
+  return {
+    success: true,
+    containment: state
+  };
+}
+
+/**
+ * Records an agent policy breach and auto-trips the safety circuit breaker if threshold is reached.
+ */
+export async function recordAgentViolation(agentId = 'usr_agent_spark') {
+  if (!containmentState[agentId]) {
+    containmentState[agentId] = JSON.parse(JSON.stringify(CANONICAL_CONTAINMENT_STATE.usr_agent_spark));
+  }
+
+  const state = containmentState[agentId];
+  state.circuitBreaker.currentViolations += 1;
+
+  let autoTripped = false;
+  if (
+    state.circuitBreaker.enabled &&
+    state.circuitBreaker.currentViolations >= state.circuitBreaker.tripThreshold &&
+    !state.circuitBreaker.isTripped &&
+    state.containmentMode === 'NORMAL'
+  ) {
+    autoTripped = true;
+    const previousMode = state.containmentMode;
+    state.circuitBreaker.isTripped = true;
+    state.containmentMode = 'QUARANTINE'; // Degrade to quarantine upon threshold breach
+    state.lastTransition = {
+      timestamp: new Date().toISOString(),
+      previousMode,
+      newMode: 'QUARANTINE',
+      triggeredBy: 'AUTO_CIRCUIT_BREAKER',
+      reason: `Automated Trip: Agent reached violation threshold (${state.circuitBreaker.currentViolations}/${state.circuitBreaker.tripThreshold}).`
+    };
+
+    await logContainmentAudit({
+      agentId,
+      eventType: 'CIRCUIT_BREAKER_TRIPPED',
+      previousMode,
+      newMode: 'QUARANTINE',
+      triggeredBy: 'AUTO_CIRCUIT_BREAKER',
+      reason: 'Repetitive policy violations exceeded safety threshold',
+      details: `Circuit breaker automatically engaged. Agent shifted from NORMAL to QUARANTINE after ${state.circuitBreaker.currentViolations} prohibited attempts.`
+    });
+  }
+
+  await writeJson('containment_state.json', containmentState);
+
+  return {
+    violations: state.circuitBreaker.currentViolations,
+    threshold: state.circuitBreaker.tripThreshold,
+    tripped: autoTripped || state.circuitBreaker.isTripped,
+    containmentMode: state.containmentMode
+  };
+}
+
+/**
+ * Resets circuit breaker violation counters and restores agent to NORMAL.
+ */
+export async function resetCircuitBreaker(agentId = 'usr_agent_spark', adminUser, reason = '') {
+  if (!adminUser || adminUser.role !== 'admin') {
+    return {
+      success: false,
+      code: 'UNAUTHORIZED_ADMIN',
+      message: 'Access Denied: Only an authorized Administrator can reset the Safety Circuit Breaker.'
+    };
+  }
+
+  if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+    return {
+      success: false,
+      code: 'INVALID_REASON',
+      message: 'Containment Safety Requirement: A valid administrative reason must be provided.'
+    };
+  }
+
+  if (!containmentState[agentId]) {
+    containmentState[agentId] = JSON.parse(JSON.stringify(CANONICAL_CONTAINMENT_STATE.usr_agent_spark));
+  }
+
+  const state = containmentState[agentId];
+  const previousMode = state.containmentMode;
+
+  state.circuitBreaker.currentViolations = 0;
+  state.circuitBreaker.isTripped = false;
+  state.containmentMode = 'NORMAL';
+  state.killSwitchEngaged = false;
+
+  state.lastTransition = {
+    timestamp: new Date().toISOString(),
+    previousMode,
+    newMode: 'NORMAL',
+    triggeredBy: adminUser.id,
+    reason: reason.trim()
+  };
+
+  await writeJson('containment_state.json', containmentState);
+
+  await logContainmentAudit({
+    agentId,
+    eventType: 'CIRCUIT_BREAKER_RESET',
+    previousMode,
+    newMode: 'NORMAL',
+    triggeredBy: adminUser.id,
+    reason: reason.trim(),
+    details: `Circuit breaker counters reset by Admin ${adminUser.id}. Agent restored to NORMAL operation.`
+  });
+
+  return {
+    success: true,
+    containment: state
+  };
+}
+
+/**
+ * Protected Append-Only Containment Audit Logger
+ */
+export async function logContainmentAudit(entry) {
+  const auditItem = {
+    id: `caudit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    timestamp: new Date().toISOString(),
+    ...entry
+  };
+
+  containmentAuditLogs.unshift(auditItem); // Most recent first
+  if (containmentAuditLogs.length > 150) {
+    containmentAuditLogs = containmentAuditLogs.slice(0, 150);
+  }
+
+  await writeJson('containment_audit.json', containmentAuditLogs);
   return auditItem;
 }

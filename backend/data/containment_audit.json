@@ -1,0 +1,13 @@
+[
+  {
+    "id": "c_audit_seed_001",
+    "timestamp": "2026-11-05T11:00:00.000Z",
+    "agentId": "system",
+    "eventType": "SYSTEM_INIT",
+    "previousMode": "NORMAL",
+    "newMode": "NORMAL",
+    "triggeredBy": "system",
+    "reason": "Agent Kill Switch & Runtime Containment subsystem initialized.",
+    "details": "Subsystem online with NORMAL, QUARANTINE, and TERMINATED containment support."
+  }
+]

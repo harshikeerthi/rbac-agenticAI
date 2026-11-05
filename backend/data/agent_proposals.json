@@ -1,21 +1,5 @@
 [
   {
-    "id": "prop_1793776827535_tg2s",
-    "agentId": "usr_agent_spark",
-    "agentName": "MarketPulse AI Agent",
-    "actionName": "propose_commission_adjustment",
-    "targetAffiliateId": "aff_bob",
-    "targetAffiliateName": "Bob Chen",
-    "currentRate": 12.5,
-    "proposedRate": 19,
-    "reason": "Rejected proposal rate test",
-    "status": "rejected",
-    "createdAt": "2026-11-04T07:20:27.535Z",
-    "resolvedAt": "2026-11-04T07:20:27.536Z",
-    "resolvedBy": "usr_admin_alex",
-    "resolutionNotes": "Sales volume dropped in October"
-  },
-  {
     "id": "prop_seed_001",
     "agentId": "usr_agent_spark",
     "agentName": "MarketPulse AI Agent",

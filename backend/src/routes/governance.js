@@ -10,7 +10,8 @@ import {
   logAgentAudit,
   getAffiliates,
   getCommissions,
-  getAffiliateById
+  getAffiliateById,
+  recordAgentViolation
 } from '../store.js';
 import { requirePermission } from '../middleware/rbac.js';
 import { evaluateAgentAction } from '../middleware/governance.js';
@@ -56,6 +57,12 @@ router.post(
         reviewerId: null
       });
 
+      // Module 3: Circuit Breaker Violation Tracking
+      let breakerStatus = null;
+      if (req.user.role === 'ai_agent') {
+        breakerStatus = await recordAgentViolation(req.user.id);
+      }
+
       return res.status(403).json({
         success: false,
         error: 'Forbidden',
@@ -65,7 +72,8 @@ router.post(
         message: `Governance Policy Violation: Action [${actionName}] is prohibited for identity [${req.user.id}].`,
         details: {
           reason: evaluation.reason,
-          agentId: req.user.id
+          agentId: req.user.id,
+          circuitBreaker: breakerStatus
         }
       });
     }
