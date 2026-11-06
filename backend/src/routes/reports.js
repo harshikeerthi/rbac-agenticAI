@@ -198,6 +198,30 @@ router.get(
   '/privacy-budget',
   requirePermission('reports:read:aggregate'),
   async (req, res) => {
+    // Least-privilege access gate:
+    // Only Administrators (supervisory) and the autonomous agent itself (MarketPulse)
+    // are authorized to inspect the agent's privacy budget telemetry.
+    const isAuthorized = req.user.role === 'admin' || (req.user.role === 'ai_agent' && req.user.id === 'usr_agent_spark');
+    if (!isAuthorized) {
+      await logActivity({
+        userId: req.user.id,
+        userRole: req.user.role,
+        method: 'GET',
+        endpoint: '/api/reports/privacy-budget',
+        requiredPermission: 'admin_or_agent_self',
+        outcome: 'DENIED',
+        statusCode: 403,
+        details: `Access Denied: Agent privacy budget inspection is restricted to Administrators and MarketPulse. Requester ${req.user.id} (${req.user.role}) rejected under least privilege.`
+      });
+
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+        code: 'INSUFFICIENT_PERMISSIONS',
+        message: 'Access Denied: Agent privacy budget telemetry is restricted to Administrators and the autonomous agent itself.'
+      });
+    }
+
     const budget = await getPrivacyBudget('usr_agent_spark');
 
     if (!budget) {

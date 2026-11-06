@@ -133,11 +133,11 @@ export default function DashboardView({
             <span className="text-[11px] font-mono text-slate-400 hidden sm:inline">• Direct runtime console access</span>
           </div>
           <span className="text-[11px] font-mono font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-            All 3 Modules Online
+            All 4 Modules Online
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5">
           {/* Module 1 */}
           <div className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-400 hover:shadow-xs transition group flex flex-col justify-between">
             <div>
@@ -260,6 +260,38 @@ export default function DashboardView({
                 className="text-[11px] font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded transition flex items-center gap-1"
               >
                 Attack Sandbox <ArrowRight size={10} />
+              </button>
+            </div>
+          </div>
+
+          {/* Module 4 */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-indigo-400 hover:shadow-xs transition group flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold">
+                  <Lock size={17} />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                    MODULE 4
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-slate-400">PRIVACY</span>
+                </div>
+              </div>
+              <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-700 transition">
+                Privacy-Aware Aggregate Analytics
+              </h4>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Differential Privacy (Laplace noise), k-anonymity cohort suppression (k ≥ 3), and dynamic epsilon budget tracking.
+              </p>
+            </div>
+
+            <div className="pt-3 mt-3 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
+              <button
+                onClick={() => setActiveTab && setActiveTab('privacy-analytics')}
+                className="text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded transition flex items-center gap-1"
+              >
+                {role === 'ai_agent' ? 'MarketPulse Analytics' : role === 'admin' ? 'Privacy Controls' : 'Privacy Analytics'} <ArrowRight size={10} />
               </button>
             </div>
           </div>

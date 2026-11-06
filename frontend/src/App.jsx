@@ -9,6 +9,7 @@ import RuntimeContainmentView from './components/RuntimeContainmentView';
 import SecuritySandboxView from './components/SecuritySandboxView';
 import ActivityLogView from './components/ActivityLogView';
 import RbacMatrixView from './components/RbacMatrixView';
+import PrivacyAnalyticsView from './components/PrivacyAnalyticsView';
 import GlobalSearchModal from './components/GlobalSearchModal';
 import NotificationDrawer from './components/NotificationDrawer';
 import ProfileModal from './components/ProfileModal';
@@ -324,6 +325,13 @@ export default function App() {
 
         {activeTab === 'containment' && (
           <RuntimeContainmentView
+            currentUser={currentUser}
+            onNotify={showNotification}
+          />
+        )}
+
+        {activeTab === 'privacy-analytics' && (
+          <PrivacyAnalyticsView
             currentUser={currentUser}
             onNotify={showNotification}
           />

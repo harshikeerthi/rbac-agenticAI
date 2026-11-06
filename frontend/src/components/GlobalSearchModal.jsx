@@ -14,7 +14,8 @@ import {
   RotateCcw,
   ExternalLink,
   X,
-  ArrowRight
+  ArrowRight,
+  Lock
 } from 'lucide-react';
 
 export default function GlobalSearchModal({
@@ -53,6 +54,7 @@ export default function GlobalSearchModal({
     { id: 'matrix', title: 'RBAC Permission Matrix', category: 'Screen', icon: Grid, desc: 'Role-to-permission mapping and boundary verification' },
     { id: 'containment', title: 'Runtime Containment & Kill Switch', category: 'Screen', icon: ShieldAlert, desc: 'Emergency Kill Switch, 3-state containment & circuit breaker' },
     { id: 'sandbox', title: 'Security Sandbox', category: 'Screen', icon: AlertOctagon, desc: 'Interactive attack simulation and raw HTTP request runner' },
+    { id: 'privacy-analytics', title: 'Module 4: Privacy-Aware Analytics', category: 'Screen', icon: Lock, desc: 'Differential Privacy, k-anonymity suppression & epsilon budget console' },
   ];
 
   const actionItems = [
@@ -63,6 +65,14 @@ export default function GlobalSearchModal({
       icon: ShieldAlert,
       desc: 'Jump directly to Module 3 Containment Center',
       action: () => { setActiveTab('containment'); onClose(); }
+    },
+    {
+      id: 'action-privacy-budget',
+      title: 'Check / Replenish Privacy Budget (Module 4)',
+      category: 'Quick Action',
+      icon: Lock,
+      desc: 'Inspect MarketPulse epsilon budget and admin replenishment controls',
+      action: () => { setActiveTab('privacy-analytics'); onClose(); }
     },
     {
       id: 'action-reset',

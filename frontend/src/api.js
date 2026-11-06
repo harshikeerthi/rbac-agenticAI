@@ -182,12 +182,41 @@ export async function getContainmentAudit() {
   return apiFetch('/containment/audit');
 }
 
+// 8. Module 4: Privacy-Aware Aggregate Analytics Endpoints
+export async function getPrivacyAnalytics(params = {}) {
+  const query = new URLSearchParams(params).toString();
+  const url = query ? `/reports/privacy-analytics?${query}` : '/reports/privacy-analytics';
+  return apiFetch(url);
+}
+
+export async function getPrivacyBudget() {
+  return apiFetch('/reports/privacy-budget');
+}
+
+export async function resetPrivacyBudget(reason, agentId = 'usr_agent_spark') {
+  return apiFetch('/reports/privacy-budget/reset', {
+    method: 'POST',
+    body: JSON.stringify({ reason, agentId })
+  });
+}
+
 /**
  * Probes the backend as MarketPulse AI Agent to verify containment live
  */
 export async function probeAgentEndpoint(endpointType) {
   if (endpointType === 'aggregate_stats') {
     const res = await fetch(`${API_BASE}/reports/aggregate-stats`, {
+      headers: {
+        'Accept': 'application/json',
+        'x-demo-user-id': 'usr_agent_spark'
+      }
+    });
+    const data = await res.json().catch(() => ({}));
+    return { status: res.status, ok: res.ok, data };
+  }
+
+  if (endpointType === 'privacy_analytics') {
+    const res = await fetch(`${API_BASE}/reports/privacy-analytics`, {
       headers: {
         'Accept': 'application/json',
         'x-demo-user-id': 'usr_agent_spark'

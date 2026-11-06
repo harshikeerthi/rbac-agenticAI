@@ -22,7 +22,8 @@ import {
   DEFAULT_K_THRESHOLD,
   DEFAULT_TOTAL_BUDGET,
   DEFAULT_QUERY_COST,
-  SENSITIVITY_BOUNDS
+  SENSITIVITY_BOUNDS,
+  METRIC_EPSILON_WEIGHTS
 } from '../src/services/privacyEngine.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -164,10 +165,12 @@ describe('Module 4: Privacy Policy Engine Unit Tests', () => {
     const sanitized = applyKAnonymity(rawCohorts, 3);
     assert.equal(sanitized.length, 3);
 
-    // SaaS has 3 members -> PUBLISHED
+    // SaaS has 3 members -> PUBLISHED (numeric breakdown withheld to prevent unbudgeted privacy release)
     assert.equal(sanitized[0].status, 'PUBLISHED');
     assert.equal(sanitized[0].actualCount, '3+');
-    assert.ok(typeof sanitized[0].perturbedClicks === 'number');
+    assert.equal(sanitized[0].perturbedClicks, null, 'Numeric breakdown withheld under primary budget allocation');
+    assert.equal(sanitized[0].perturbedConversions, null);
+    assert.equal(sanitized[0].metrics.numericBreakdownWithheld, true);
 
     // Fitness has 1 member -> SUPPRESSED
     assert.equal(sanitized[1].status, 'SUPPRESSED');
@@ -388,11 +391,11 @@ describe('Module 4: Privacy Policy Engine Unit Tests', () => {
     assert.equal(result.budgetTelemetry.epsilonDeducted, 1.0);
     assert.equal(result.budgetTelemetry.remainingBudget, 9.0);
 
-    // Verify k-anonymity applied to cohorts
-    assert.ok(Array.isArray(result.cohorts));
-    for (const c of result.cohorts) {
-      assert.equal(c.status, 'SUPPRESSED');
-    }
+    // Verify cohort telemetry is withheld for AI Agent to prevent threshold leakage
+    assert.equal(result.cohorts, null, 'Cohorts must be withheld for AI Agent');
+    assert.equal(result.data.categoriesCount, null, 'Category count must be withheld for AI Agent');
+    assert.equal(result.data.topCategory, null, 'Top category must be withheld for AI Agent');
+    assert.equal(result.privacyGuarantees.smallCellSuppressionApplied, null, 'Suppression boolean must be withheld for AI Agent');
   });
 
   test('U-18: Admin calling generatePrivacyPreservingAnalytics does NOT deplete AI Agent budget', async () => {
@@ -418,6 +421,7 @@ describe('Module 4: Privacy Policy Engine Unit Tests', () => {
     // Operational audit attached for admin only
     assert.ok(result.operationalGroundTruth);
     assert.equal(result.operationalGroundTruth.rawAffiliatesCount, 3);
+    assert.ok(Array.isArray(result.cohorts), 'Admin retains supervisory access to cohorts array');
   });
 
   test('U-19: Concurrent calls to consumePrivacyBudget are serialized without race conditions', async () => {
@@ -453,6 +457,88 @@ describe('Module 4: Privacy Policy Engine Unit Tests', () => {
     // aff_1 clamped to 3,000 + aff_2 clamped to 500 = 3,500 (instead of 5,000)
     assert.equal(result.operationalGroundTruth.rawVolume, 3500);
     assert.equal(result.operationalGroundTruth.rawPaid, 3500);
+  });
+
+  test('U-21: Epsilon budget partitioning: 5 metrics allocated 0.20 each summing strictly to total query cost (1.0)', () => {
+    const keys = Object.keys(METRIC_EPSILON_WEIGHTS);
+    assert.equal(keys.length, 5);
+    assert.deepEqual(keys.sort(), [
+      'totalAffiliatesCount',
+      'totalCommissionVolume',
+      'totalPaidCommissions',
+      'totalPlatformClicks',
+      'totalPlatformConversions'
+    ].sort());
+
+    let sum = 0;
+    for (const key of keys) {
+      assert.equal(METRIC_EPSILON_WEIGHTS[key], 0.20);
+      sum += METRIC_EPSILON_WEIGHTS[key];
+    }
+    assert.equal(Number(sum.toFixed(4)), 1.00);
+    assert.equal(sum, DEFAULT_QUERY_COST);
+  });
+
+  test('U-22: Symmetric affiliate count perturbation: does not clamp to secret ground truth', () => {
+    // Test that perturbNumericValue allows symmetric negative deviations and outputs values below ground truth
+    // With sensitivity = 1, ground truth = 3, repeated samples can produce values < 3 while remaining >= 0
+    let observedBelowGroundTruth = false;
+    for (let i = 0; i < 100; i++) {
+      const val = perturbNumericValue(3, SENSITIVITY_BOUNDS.affiliatesCount.sensitivity, 0.20, true);
+      assert.ok(val >= 0, 'Must satisfy physical non-negativity bound');
+      if (val < 3) {
+        observedBelowGroundTruth = true;
+      }
+    }
+    assert.ok(observedBelowGroundTruth, 'Symmetric Laplace noise must produce outputs below ground truth without secret lower-bound clamping');
+  });
+
+  test('U-23: Cohort suppression reason does not leak raw member count', () => {
+    const singleCohort = [{
+      cohortKey: 'Small Category',
+      label: 'Small Category',
+      members: ['aff_1'], // exactly 1 member
+      rawClicks: 100,
+      rawConversions: 5
+    }];
+
+    const suppressed = applyKAnonymity(singleCohort, 3, 1.0);
+    assert.equal(suppressed.length, 1);
+    assert.equal(suppressed[0].status, 'SUPPRESSED');
+    assert.equal(suppressed[0].actualCount, null);
+    assert.equal(suppressed[0].perturbedClicks, null);
+    assert.equal(suppressed[0].perturbedConversions, null);
+    assert.ok(!suppressed[0].reason.includes('(1)'), 'Reason string must not disclose raw member count');
+    assert.ok(suppressed[0].reason.includes('k = 3'));
+  });
+
+  test('U-24: Total active affiliates is omitted from privacy-protected response to prevent unbudgeted release', async () => {
+    const agentUser = { id: 'usr_agent_spark', role: 'ai_agent' };
+    const result = await generatePrivacyPreservingAnalytics({
+      rawAffiliates: SAMPLE_AFFILIATES,
+      rawCommissions: SAMPLE_COMMISSIONS,
+      user: agentUser
+    });
+
+    assert.equal(result.success, true);
+    assert.equal(result.data.totalActiveAffiliates, null, 'Active affiliates must be null in privacy release');
+    assert.equal(result.privacyGuarantees.activeAffiliatesPolicy, 'Omitted from privacy-protected response to prevent unbudgeted privacy release');
+  });
+
+  test('U-25: Metric-level Laplace scales match calibrated feature sensitivity (clicks b=75k, conv b=5k, volume b=15k, count b=5)', async () => {
+    const agentUser = { id: 'usr_agent_spark', role: 'ai_agent' };
+    const result = await generatePrivacyPreservingAnalytics({
+      rawAffiliates: SAMPLE_AFFILIATES,
+      rawCommissions: SAMPLE_COMMISSIONS,
+      user: agentUser
+    });
+
+    const scales = result.privacyGuarantees.calibratedNoiseScales;
+    assert.equal(scales.totalAffiliatesCount, 5); // 1 / 0.20
+    assert.equal(scales.totalPlatformClicks, 75000); // 15,000 / 0.20
+    assert.equal(scales.totalPlatformConversions, 5000); // 1,000 / 0.20
+    assert.equal(scales.totalCommissionVolume, 15000); // 3,000 / 0.20
+    assert.equal(scales.totalPaidCommissions, 15000); // 3,000 / 0.20
   });
 });
 

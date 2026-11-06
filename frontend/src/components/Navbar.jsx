@@ -395,6 +395,49 @@ export default function Navbar({
                 </div>
               )}
             </div>
+
+            {/* 5. Module 4: Privacy Analytics */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === 'module4' ? null : 'module4')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
+                  activeTab === 'privacy-analytics'
+                    ? 'bg-indigo-50 text-indigo-900 font-bold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <span className="px-1 py-0.2 rounded text-[10px] font-mono font-bold bg-indigo-100 text-indigo-800">
+                  M4
+                </span>
+                <span>Privacy</span>
+                <ChevronDown size={12} className={`transition-transform ${openDropdown === 'module4' ? 'rotate-180' : ''}`} />
+              </button>
+
+              {openDropdown === 'module4' && (
+                <div className="absolute left-0 mt-2 w-64 rounded-xl bg-white border border-slate-200 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-3.5 py-1 text-[10px] font-bold text-indigo-800 bg-indigo-50/70 uppercase tracking-wider border-b border-indigo-100 mb-1">
+                    Module 4 — Privacy Analytics
+                  </div>
+                  <button
+                    onClick={() => handleNavClick('privacy-analytics')}
+                    className={`w-full text-left px-3.5 py-2 text-xs font-semibold flex items-center gap-2.5 hover:bg-slate-50 ${
+                      activeTab === 'privacy-analytics' ? 'text-indigo-700 bg-indigo-50 font-bold' : 'text-slate-700'
+                    }`}
+                  >
+                    <Lock size={15} className="text-indigo-600" />
+                    <div>
+                      <div>
+                        {isAgent ? 'MarketPulse Privacy Analytics' : isAdmin ? 'Admin Privacy Controls' : 'Privacy-Aware Analytics'}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-normal">
+                        Differential Privacy &amp; ε-budget
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
           </nav>
 
           {/* Right Utility Bar: Search, Notifications, Persona Switcher */}
@@ -592,6 +635,19 @@ export default function Navbar({
               }`}
             >
               <AlertOctagon size={15} /> Security Attack Sandbox
+            </button>
+
+            <div className="px-2 pt-2.5 text-[10px] font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="px-1 py-0.2 rounded bg-indigo-100 text-indigo-900 font-mono text-[9px]">M4</span>
+              <span>Module 4: Privacy-Aware Analytics</span>
+            </div>
+            <button
+              onClick={() => handleNavClick('privacy-analytics')}
+              className={`w-full text-left px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-2 ${
+                activeTab === 'privacy-analytics' ? 'bg-indigo-50 text-indigo-800 font-bold' : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Lock size={15} /> Privacy Analytics &amp; ε-Budget
             </button>
             <button
               onClick={() => handleNavClick('activity')}

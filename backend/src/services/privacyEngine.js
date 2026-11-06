@@ -59,6 +59,16 @@ export const MAX_K_THRESHOLD = 20;
 export const DEFAULT_TOTAL_BUDGET = 10.0;
 export const DEFAULT_QUERY_COST = 1.0;
 
+// Feature-Level Privacy Budget Partitioning (Approach A)
+// Allocates the query epsilon across the five primary metrics so that sum(eps_i) === DEFAULT_QUERY_COST
+export const METRIC_EPSILON_WEIGHTS = {
+  totalAffiliatesCount: 0.20,
+  totalPlatformClicks: 0.20,
+  totalPlatformConversions: 0.20,
+  totalCommissionVolume: 0.20,
+  totalPaidCommissions: 0.20
+};
+
 // Metric Global Sensitivities (Δf) and Contribution Clamping Bounds (B)
 export const SENSITIVITY_BOUNDS = {
   affiliatesCount: {
@@ -219,30 +229,28 @@ export function applyKAnonymity(cohorts, kThreshold = DEFAULT_K_THRESHOLD, epsil
         label: cohort.label || cohort.cohortKey,
         status: 'SUPPRESSED',
         kThreshold: threshold,
-        actualCount: null, // Suppressed to prevent exact low-count disclosure
-        reason: `Cohort size (${memberCount}) is below minimum anonymity threshold (k = ${threshold}). Metrics suppressed to prevent small-cell de-anonymization.`,
+        actualCount: null, // Suppressed to prevent small-cell de-anonymization
+        reason: `Cohort size is below minimum anonymity threshold (k = ${threshold}). Metrics withheld to prevent small-cell de-anonymization.`,
         perturbedClicks: null,
         perturbedConversions: null,
         metrics: null
       };
     }
 
-    // Cohort satisfies k-anonymity: perturb metrics with Laplace noise
-    const rawClicks = Number(cohort.rawClicks) || 0;
-    const rawConversions = Number(cohort.rawConversions) || 0;
-
+    // Cohort satisfies k-anonymity: category-level numeric breakdowns are withheld
+    // to preserve single-query privacy budget allocation without unbudgeted independent draws
     return {
       cohortKey: cohort.cohortKey,
       label: cohort.label || cohort.cohortKey,
       status: 'PUBLISHED',
       kThreshold: threshold,
       actualCount: `${threshold}+`, // Range-bucketed count rather than exact raw number
-      reason: null,
-      perturbedClicks: perturbNumericValue(rawClicks, SENSITIVITY_BOUNDS.totalClicks.sensitivity, epsilon, true),
-      perturbedConversions: perturbNumericValue(rawConversions, SENSITIVITY_BOUNDS.totalConversions.sensitivity, epsilon, true),
+      reason: `Cohort satisfies k >= ${threshold} threshold. Category-level numeric breakdowns are withheld under primary budget allocation.`,
+      perturbedClicks: null,
+      perturbedConversions: null,
       metrics: {
         satisfiesKAnonymity: true,
-        differentialPrivacyApplied: true
+        numericBreakdownWithheld: true
       }
     };
   });
@@ -324,12 +332,16 @@ async function readPrivacyStateFromDisk(retries = 3) {
 async function writePrivacyStateToDisk(data, retries = 5) {
   const payload = JSON.stringify(data, null, 2);
   for (let attempt = 0; attempt < retries; attempt++) {
+    const tmpFile = `${PRIVACY_STATE_FILE}.tmp.${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     try {
-      const tmpFile = `${PRIVACY_STATE_FILE}.tmp.${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
       await fs.writeFile(tmpFile, payload, 'utf-8');
       await fs.rename(tmpFile, PRIVACY_STATE_FILE);
       return;
     } catch (err) {
+      try {
+        await fs.unlink(tmpFile);
+      } catch {}
+
       if ((err.code === 'EPERM' || err.code === 'EBUSY') && attempt < retries - 1) {
         await new Promise(r => setTimeout(r, 20 * (attempt + 1)));
         try {
@@ -723,49 +735,48 @@ export async function generatePrivacyPreservingAnalytics({
     boundedPaid += Math.min(paidAmt, SENSITIVITY_BOUNDS.totalPaidCommissions.clampingBound);
   }
 
-  // 4. Apply Differential Privacy Laplace Noise
+  // 4. Feature-Level Epsilon Partitioning (Approach A)
+  // Query budget epsilon is allocated across the 5 primary metrics so that sum(eps_i) === epsilon
+  const epsCount = Number((epsilon * METRIC_EPSILON_WEIGHTS.totalAffiliatesCount).toFixed(4));
+  const epsClicks = Number((epsilon * METRIC_EPSILON_WEIGHTS.totalPlatformClicks).toFixed(4));
+  const epsConv = Number((epsilon * METRIC_EPSILON_WEIGHTS.totalPlatformConversions).toFixed(4));
+  const epsVol = Number((epsilon * METRIC_EPSILON_WEIGHTS.totalCommissionVolume).toFixed(4));
+  const epsPaid = Number((epsilon * METRIC_EPSILON_WEIGHTS.totalPaidCommissions).toFixed(4));
+
   const perturbedClicks = perturbNumericValue(
     boundedClicks,
     SENSITIVITY_BOUNDS.totalClicks.sensitivity,
-    epsilon,
+    epsClicks,
     true
   );
 
   const perturbedConversions = perturbNumericValue(
     boundedConversions,
     SENSITIVITY_BOUNDS.totalConversions.sensitivity,
-    epsilon,
+    epsConv,
     true
   );
 
   const perturbedVolume = perturbNumericValue(
     boundedVolume,
     SENSITIVITY_BOUNDS.totalCommissionVolume.sensitivity,
-    epsilon,
+    epsVol,
     true
   );
 
   const perturbedPaid = perturbNumericValue(
     boundedPaid,
     SENSITIVITY_BOUNDS.totalPaidCommissions.sensitivity,
-    epsilon,
+    epsPaid,
     true
   );
 
-  const perturbedAffiliatesCount = Math.max(
+  // Symmetrically perturbed affiliate count without secret ground-truth lower-bound clamping.
+  // Physical non-negativity (>= 0) is enforced by perturbNumericValue's Math.max(0, ...).
+  const perturbedAffiliatesCount = perturbNumericValue(
     totalAffiliates,
-    perturbNumericValue(
-      totalAffiliates,
-      SENSITIVITY_BOUNDS.affiliatesCount.sensitivity,
-      epsilon,
-      true
-    )
-  );
-
-  const perturbedActiveAffiliates = perturbNumericValue(
-    activeAffiliates,
     SENSITIVITY_BOUNDS.affiliatesCount.sensitivity,
-    epsilon,
+    epsCount,
     true
   );
 
@@ -773,30 +784,46 @@ export async function generatePrivacyPreservingAnalytics({
     ? ((perturbedConversions / perturbedClicks) * 100).toFixed(2) + '%'
     : '0.00%';
 
-  // 5. Apply k-Anonymity Cohort Suppression
+  // 5. Apply k-Anonymity Cohort Suppression (Operational view for Admin / Manager)
   const categoryCohorts = buildCategorizedCohorts(rawAffiliates, kThreshold, epsilon);
 
   // 6. Assemble Sanitized Payload
+  // For AI Agents (MarketPulse): Withhold cohorts and unbudgeted category metadata to prevent threshold disclosure
   const payload = {
     success: true,
     privacyMode: 'DIFFERENTIAL_PRIVACY_ENFORCED',
     data: {
       totalAffiliatesCount: perturbedAffiliatesCount,
-      totalActiveAffiliates: perturbedActiveAffiliates,
+      totalActiveAffiliates: null, // Omitted from privacy release to prevent unbudgeted privacy leakage
       totalPlatformClicks: perturbedClicks,
       totalPlatformConversions: perturbedConversions,
       platformConversionRate,
       totalCommissionVolume: perturbedVolume,
       totalPaidCommissions: perturbedPaid,
-      categoriesCount: categoryCohorts.length,
-      topCategory: 'Consumer Electronics & SaaS',
+      categoriesCount: isAgent ? null : categoryCohorts.length,
+      topCategory: isAgent ? null : 'Consumer Electronics & SaaS',
       calculatedAt: new Date().toISOString()
     },
-    cohorts: categoryCohorts,
+    cohorts: isAgent ? null : categoryCohorts,
     privacyGuarantees: {
       differentialPrivacyApplied: true,
       mechanism: 'Laplace Mechanism (Node.js crypto.randomBytes)',
       epsilonApplied: epsilon,
+      epsilonAllocations: {
+        totalAffiliatesCount: epsCount,
+        totalPlatformClicks: epsClicks,
+        totalPlatformConversions: epsConv,
+        totalCommissionVolume: epsVol,
+        totalPaidCommissions: epsPaid,
+        totalAllocated: Number((epsCount + epsClicks + epsConv + epsVol + epsPaid).toFixed(2))
+      },
+      calibratedNoiseScales: {
+        totalAffiliatesCount: SENSITIVITY_BOUNDS.affiliatesCount.sensitivity / epsCount,
+        totalPlatformClicks: SENSITIVITY_BOUNDS.totalClicks.sensitivity / epsClicks,
+        totalPlatformConversions: SENSITIVITY_BOUNDS.totalConversions.sensitivity / epsConv,
+        totalCommissionVolume: SENSITIVITY_BOUNDS.totalCommissionVolume.sensitivity / epsVol,
+        totalPaidCommissions: SENSITIVITY_BOUNDS.totalPaidCommissions.sensitivity / epsPaid
+      },
       sensitivityBoundsApplied: {
         totalClicks: SENSITIVITY_BOUNDS.totalClicks.sensitivity,
         totalConversions: SENSITIVITY_BOUNDS.totalConversions.sensitivity,
@@ -808,7 +835,12 @@ export async function generatePrivacyPreservingAnalytics({
       piiExposed: false,
       individualRecordsIncluded: false,
       kAnonymityThreshold: kThreshold,
-      smallCellSuppressionApplied: categoryCohorts.some(c => c.status === 'SUPPRESSED'),
+      smallCellSuppressionApplied: isAgent ? null : categoryCohorts.some(c => c.status === 'SUPPRESSED'),
+      accountingModel: 'Feature-Level Epsilon Partitioning (Basic Sequential Composition: sum(eps_i) = epsilon)',
+      cohortPrivacyModel: isAgent
+        ? 'Category cohorts withheld from autonomous agents to prevent unbudgeted threshold disclosure'
+        : 'k-Anonymity small-cell disclosure control (syntactic safeguard, not DP; status reveals threshold bound)',
+      activeAffiliatesPolicy: 'Omitted from privacy-protected response to prevent unbudgeted privacy release',
       parameterEnforcement: enforcedBy,
       educationalNotice: 'Educational Prototype: Demonstrates Differential Privacy & k-Anonymity. Not certified production-grade.'
     }
