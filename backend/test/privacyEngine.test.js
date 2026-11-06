@@ -139,10 +139,15 @@ describe('Module 4: Privacy Policy Engine Unit Tests', () => {
 
   test('U-05: SENSITIVITY_BOUNDS are correctly defined for all platform metrics', () => {
     assert.equal(SENSITIVITY_BOUNDS.affiliatesCount.sensitivity, 1);
-    assert.equal(SENSITIVITY_BOUNDS.totalClicks.sensitivity, 5000);
-    assert.equal(SENSITIVITY_BOUNDS.totalConversions.sensitivity, 500);
-    assert.equal(SENSITIVITY_BOUNDS.totalCommissionVolume.sensitivity, 2500);
-    assert.equal(SENSITIVITY_BOUNDS.totalPaidCommissions.sensitivity, 2500);
+    assert.equal(SENSITIVITY_BOUNDS.affiliatesCount.clampingBound, 1);
+    assert.equal(SENSITIVITY_BOUNDS.totalClicks.sensitivity, 15000);
+    assert.equal(SENSITIVITY_BOUNDS.totalClicks.clampingBound, 15000);
+    assert.equal(SENSITIVITY_BOUNDS.totalConversions.sensitivity, 1000);
+    assert.equal(SENSITIVITY_BOUNDS.totalConversions.clampingBound, 1000);
+    assert.equal(SENSITIVITY_BOUNDS.totalCommissionVolume.sensitivity, 3000);
+    assert.equal(SENSITIVITY_BOUNDS.totalCommissionVolume.clampingBound, 3000);
+    assert.equal(SENSITIVITY_BOUNDS.totalPaidCommissions.sensitivity, 3000);
+    assert.equal(SENSITIVITY_BOUNDS.totalPaidCommissions.clampingBound, 3000);
   });
 
   // =========================================================================
@@ -413,6 +418,41 @@ describe('Module 4: Privacy Policy Engine Unit Tests', () => {
     // Operational audit attached for admin only
     assert.ok(result.operationalGroundTruth);
     assert.equal(result.operationalGroundTruth.rawAffiliatesCount, 3);
+  });
+
+  test('U-19: Concurrent calls to consumePrivacyBudget are serialized without race conditions', async () => {
+    // 5 concurrent requests executed simultaneously with Promise.all
+    const promises = Array.from({ length: 5 }, (_, i) =>
+      consumePrivacyBudget('usr_agent_spark', 1.0, { endpoint: '/concurrent', actionName: `query_${i}` })
+    );
+    const results = await Promise.all(promises);
+    for (const r of results) {
+      assert.equal(r.success, true);
+    }
+    const finalBudget = await getPrivacyBudget('usr_agent_spark');
+    assert.equal(finalBudget.remainingBudget, 5.0, 'Remaining budget must be exactly 5.0 after 5 serialized deductions');
+    assert.equal(finalBudget.totalQueriesExecuted, 5);
+  });
+
+  test('U-20: Neighboring dataset commission volume clamps total contribution per affiliate', async () => {
+    // Affiliate with multiple commissions totaling > $3,000
+    const multiCommissions = [
+      { id: 'c1', affiliateId: 'aff_1', amount: 2000.00, status: 'paid' },
+      { id: 'c2', affiliateId: 'aff_1', amount: 2500.00, status: 'paid' }, // total aff_1 = $4,500 -> must clamp to $3,000
+      { id: 'c3', affiliateId: 'aff_2', amount: 500.00, status: 'paid' }
+    ];
+
+    const adminUser = { id: 'usr_admin_alex', role: 'admin' };
+    const result = await generatePrivacyPreservingAnalytics({
+      rawAffiliates: SAMPLE_AFFILIATES,
+      rawCommissions: multiCommissions,
+      user: adminUser,
+      requestedParams: { includeOperationalAudit: true }
+    });
+
+    // aff_1 clamped to 3,000 + aff_2 clamped to 500 = 3,500 (instead of 5,000)
+    assert.equal(result.operationalGroundTruth.rawVolume, 3500);
+    assert.equal(result.operationalGroundTruth.rawPaid, 3500);
   });
 });
 

@@ -15,6 +15,7 @@ import {
 } from '../store.js';
 import { requirePermission } from '../middleware/rbac.js';
 import { evaluateAgentAction } from '../middleware/governance.js';
+import { generatePrivacyPreservingAnalytics } from '../services/privacyEngine.js';
 
 const router = Router();
 
@@ -155,6 +156,58 @@ router.post(
       const affiliates = getAffiliates();
       const commissions = getCommissions();
 
+      // AI Agent access path: Enforce Privacy Policy Engine & Budget Gate
+      if (req.user.role === 'ai_agent') {
+        const privacyResult = await generatePrivacyPreservingAnalytics({
+          rawAffiliates: affiliates,
+          rawCommissions: commissions,
+          user: req.user,
+          requestedParams: {
+            endpoint: '/api/governance/dispatch',
+            actionName
+          }
+        });
+
+        if (!privacyResult.success) {
+          await logAgentAudit({
+            agentId: req.user.id,
+            actionName,
+            policyEvaluated: 'ALLOWED_AUTONOMOUS_ACTION',
+            outcome: 'DENIED',
+            details: `Autonomous execution halted: ${privacyResult.message}`,
+            actorId: req.user.id,
+            reviewerId: null
+          });
+
+          return res.status(429).json(privacyResult);
+        }
+
+        await logAgentAudit({
+          agentId: req.user.id,
+          actionName,
+          policyEvaluated: 'ALLOWED_AUTONOMOUS_ACTION',
+          outcome: 'EXECUTED',
+          details: 'Autonomous execution permitted: Served privacy-preserving aggregate metrics (DP Laplace noise applied, zero raw figures).',
+          actorId: req.user.id,
+          reviewerId: null
+        });
+
+        return res.status(200).json({
+          success: true,
+          outcome: 'EXECUTED',
+          actionName,
+          policyCategory: 'ALLOWED',
+          message: 'Action executed autonomously under privacy-preserving least-privilege policy.',
+          data: {
+            ...privacyResult.data,
+            privacyGuarantees: privacyResult.privacyGuarantees
+          },
+          privacyGuarantees: privacyResult.privacyGuarantees,
+          budgetTelemetry: privacyResult.budgetTelemetry
+        });
+      }
+
+      // Non-agent execution (e.g. Admin simulating query_aggregate_metrics)
       const totalClicks = affiliates.reduce((sum, a) => sum + (a.metrics?.totalClicks || 0), 0);
       const totalConversions = affiliates.reduce((sum, a) => sum + (a.metrics?.totalConversions || 0), 0);
       const totalCommissionVolume = commissions.reduce((sum, c) => sum + (c.amount || 0), 0);
@@ -177,7 +230,7 @@ router.post(
         actionName,
         policyEvaluated: 'ALLOWED_AUTONOMOUS_ACTION',
         outcome: 'EXECUTED',
-        details: 'Autonomous execution permitted: Served privacy-preserving aggregate metrics.',
+        details: 'Simulated execution permitted: Served aggregate metrics.',
         actorId: req.user.id,
         reviewerId: null
       });
@@ -187,7 +240,7 @@ router.post(
         outcome: 'EXECUTED',
         actionName,
         policyCategory: 'ALLOWED',
-        message: 'Action executed autonomously under least-privilege policy.',
+        message: 'Action executed under least-privilege policy.',
         data: aggregateStats
       });
     }

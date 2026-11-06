@@ -94,8 +94,10 @@ export async function enforceAgentContainment(req, res, next) {
   // 6. QUARANTINE MODE
   if (state.containmentMode === 'QUARANTINE') {
     // Determine whether this request is permitted under quarantine:
-    // Permitted: Read-only aggregate stats (/api/reports/aggregate-stats) and query_aggregate_metrics
-    const isAggregateReport = req.originalUrl.includes('/reports/aggregate-stats');
+    // Permitted: Read-only aggregate diagnostics and privacy telemetry
+    const isAggregateReport = req.originalUrl.includes('/reports/aggregate-stats') ||
+      req.originalUrl.includes('/reports/privacy-analytics') ||
+      req.originalUrl.includes('/reports/privacy-budget');
     const isAggregateDispatch = req.originalUrl.includes('/governance/dispatch') && req.body?.actionName === 'query_aggregate_metrics';
 
     // Strictly blocked: Autonomous mutations and proposal submissions

@@ -2,6 +2,7 @@ import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer, stopServer } from '../src/server.js';
 import { resetStore, createAgentProposal, getAllContainmentStates } from '../src/store.js';
+import { resetPrivacyState } from '../src/services/privacyEngine.js';
 
 const PORT = 5055;
 const BASE_URL = `http://localhost:${PORT}/api`;
@@ -10,10 +11,12 @@ describe('Security & RBAC Authorization Suite', () => {
   before(async () => {
     await startServer(PORT);
     await resetStore();
+    await resetPrivacyState();
   });
 
   after(async () => {
     await stopServer();
+    await resetPrivacyState();
   });
 
   // TC-01: Health check
@@ -218,16 +221,19 @@ describe('Security & RBAC Authorization Suite', () => {
   });
 
   // TC-16: AI Agent reads aggregate stats
-  test('TC-16: Simulated AI Agent reads aggregate stats (200 OK, zero PII)', async () => {
+  test('TC-16: Simulated AI Agent reads aggregate stats (200 OK, zero PII, DP enforced)', async () => {
     const res = await fetch(`${BASE_URL}/reports/aggregate-stats`, {
       headers: { 'x-demo-user-id': 'usr_agent_spark' }
     });
     const body = await res.json();
     assert.equal(res.status, 200);
     assert.equal(body.success, true);
-    assert.ok(body.data.totalAffiliatesCount >= 3);
+    assert.ok(typeof body.data.totalAffiliatesCount === 'number');
+    assert.ok(body.data.totalAffiliatesCount >= 1);
     assert.ok(body.data.platformConversionRate);
     assert.equal(body.privacyGuarantees.piiExposed, false);
+    assert.equal(body.privacyGuarantees.differentialPrivacyApplied, true);
+    assert.equal(body.privacyGuarantees.rawTotalsExposed, false);
     // Verify no individual names or emails leaked
     assert.equal(body.data.name, undefined);
     assert.equal(body.data.email, undefined);
