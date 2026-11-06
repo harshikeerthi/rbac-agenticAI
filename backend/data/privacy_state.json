@@ -1,0 +1,15 @@
+{
+  "usr_agent_spark": {
+    "agentId": "usr_agent_spark",
+    "agentName": "MarketPulse AI Agent",
+    "totalBudget": 10,
+    "remainingBudget": 10,
+    "totalQueriesExecuted": 0,
+    "defaultQueryCost": 1,
+    "status": "ACTIVE",
+    "lastQueryAt": null,
+    "lastResetAt": "2026-11-06T09:00:00.000Z",
+    "resetBy": "system",
+    "history": []
+  }
+}
